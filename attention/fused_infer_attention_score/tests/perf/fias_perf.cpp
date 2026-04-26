@@ -75,8 +75,10 @@ int64_t ShapeProd(const std::vector<int64_t> &shape) {
     return n;
 }
 
-// Allocate a device tensor with uninitialized contents. Correctness is not the
-// goal here — kernel runtime depends on shape + dtype + layout, not on values.
+// Allocate a device tensor and zero-initialize it. We zero-init (rather than
+// leave uninitialized) so a kernel that's sensitive to NaN/Inf from garbage
+// data, or one that reads metadata-like values out of the buffer, gets a
+// well-defined 0.0 input. Cheap; setup time isn't in the timing loop.
 aclTensor *AllocTensor(const std::vector<int64_t> &shape, aclDataType dtype,
                        void **deviceAddrOut) {
     int64_t numel = ShapeProd(shape);
@@ -93,6 +95,7 @@ aclTensor *AllocTensor(const std::vector<int64_t> &shape, aclDataType dtype,
     size_t bytes = static_cast<size_t>(numel) * elemSize;
     void *devAddr = nullptr;
     CHECK_ACL(aclrtMalloc(&devAddr, bytes, ACL_MEM_MALLOC_HUGE_FIRST));
+    CHECK_ACL(aclrtMemset(devAddr, bytes, 0, bytes));
 
     std::vector<int64_t> strides(shape.size(), 1);
     for (int64_t i = static_cast<int64_t>(shape.size()) - 2; i >= 0; --i) {
