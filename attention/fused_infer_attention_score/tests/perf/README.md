@@ -39,22 +39,42 @@ of `fias_perf.cpp`.
 ## Usage
 
 ```
-# 1. From the repo root, build + install the FIAS run package on a real
-#    ascend950 device. (See ../../README.md or repo CLAUDE.md for full
-#    install steps.)
+# 1. From the repo root, build the FIAS run package on a real ascend950
+#    host. (See ../../README.md or repo CLAUDE.md for full build steps.)
 bash build.sh --pkg --ops=fused_infer_attention_score --soc=ascend950
-./build_out/cann-ops-transformer-*.run --install-path=$(realpath ${ASCEND_HOME_PATH}/../)
 
-# 2. Run the benchmark.
+# 2. Install the run package INTO the OPP tree, not into a top-level
+#    custom location. Two reasons:
+#    - --install-path=$(realpath $ASCEND_HOME_PATH/../) puts files at
+#      /usr/local/Ascend/vendors/custom_transformer/, which leaves any
+#      pre-existing ${ASCEND_OPP_PATH}/vendors/custom_transformer/ install
+#      intact and creates a dual-install conflict that op_master may
+#      resolve in confusing ways.
+#    - Installing directly to ASCEND_OPP_PATH gives op_master one
+#      canonical vendor and matches the path the in-tree example expects.
+#    If a previous install of a DIFFERENT ops set is already there
+#    (e.g. apply_rotary_pos_emb), wipe it first:
+#      rm -rf $ASCEND_OPP_PATH/vendors/custom_transformer
+#    Then:
+./build_out/cann-ops-transformer-*.run --quiet --install-path="${ASCEND_OPP_PATH}"
+
+# 3. Run the benchmark.
 cd attention/fused_infer_attention_score/tests/perf
 bash run.sh
 ```
 
-Expected output is one line:
+Expected output on success is one line:
 
 ```
-fias_perf decode  B=1 Sq=1 Skv=4096 Nq=32 Nkv=8 D=128 BNSD fp16  median=NN.NN us  min=...  p95=...  max=...  iters=100  warmup=5
+fias_perf decode  B=1 Sq=2 Skv=2 Nq=2 Nkv=2 D=16 BNSD fp16  median=NN.NN us  min=...  p95=...  max=...  iters=100  warmup=5
 ```
+
+If you see `ACL error 507015 at ... (aclrtSynchronizeStream)` instead,
+the kernel launched on the device but aborted asynchronously. As of the
+2026-04-26 run on this branch, this reproduces with the example's exact
+shape (1,2,2,16) and zero-initialized inputs — meaning the regression
+is structural in the kernel binary, not a config or data issue. See the
+session notes for diagnosis history.
 
 ## Diffing across a refactor
 
