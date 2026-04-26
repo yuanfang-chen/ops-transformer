@@ -157,10 +157,11 @@ int main(int argc, char **argv) {
     // where `hasAtten` is the template parameter — always true after the
     // erasure. So when the user passes attenMask=nullptr, the kernel still
     // tries to copy from a null GM and the device aborts (ACL 507015).
-    // Workaround for the bench: pass a zero-init mask of the canonical
-    // [Sq, Skv] shape so the runtime guard's (broken) always-true branch
-    // copies from a real allocation instead of nullptr.
-    std::vector<int64_t> maskShape = {cfg.seqlen_q, cfg.seqlen_kv};
+    // Workaround for the bench: pass a zero-init mask. ascend950 (arch35)
+    // host validator rejects 2D masks with sparseMode=0 — see
+    // op_host/checkers/mask_checker.cpp:198-207. Use 4D [1,1,Sq,Skv]
+    // (broadcastable across B and N).
+    std::vector<int64_t> maskShape = {1, 1, cfg.seqlen_q, cfg.seqlen_kv};
     void *maskDev = nullptr;
     aclTensor *maskT = AllocTensor(maskShape, ACL_BOOL, &maskDev);
 
