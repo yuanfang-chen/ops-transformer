@@ -252,11 +252,11 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3; do
-            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple torch torch_npu; then
+            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple torch torch_npu pytest; then
               break
             fi
             if [ "$attempt" = "3" ]; then
-              echo "pip3 install torch/torch_npu failed after 3 attempts"
+              echo "pip3 install torch/torch_npu/pytest failed after 3 attempts"
               exit 1
             fi
             delay=$((10 * attempt))
