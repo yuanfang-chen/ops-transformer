@@ -24,7 +24,10 @@
 #
 # Usage: bash run.sh [--vendor=NAME]   # default vendor: custom
 
-set -eu
+set -e
+# Don't `set -u` — CANN's set_env.sh references LD_LIBRARY_PATH /
+# PYTHONPATH / CMAKE_PREFIX_PATH unconditionally and warns under `-u`,
+# which is harmless but pollutes our log.
 
 CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)
 VENDOR="custom"
