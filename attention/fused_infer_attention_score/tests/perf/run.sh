@@ -55,25 +55,19 @@ if [ -z "${ASCEND_HOME_PATH:-}" ]; then
     exit 1
 fi
 
-# 2. Vendor env. Two possible install layouts — try both.
-VENDOR_ENV=""
+# 2. Vendor env (optional). Some run-pkg installations don't ship a
+# set_env.bash — that's fine, build.sh's --run_example fallback path
+# (build.sh:582-583) reads ${ASCEND_OPP_PATH}/vendors/.../op_api/{lib,include}
+# directly without needing the vendor env to be sourced. If a set_env.bash
+# IS present, source it so ASCEND_CUSTOM_OPP_PATH gets honored.
 for cand in "${ASCEND_OPP_PATH:-${ASCEND_HOME_PATH}/opp}/vendors/${VENDOR}_transformer/bin/set_env.bash" \
             "$(realpath "${ASCEND_HOME_PATH}/../")/vendors/${VENDOR}_transformer/bin/set_env.bash"; do
     if [ -f "$cand" ]; then
-        VENDOR_ENV="$cand"
+        # shellcheck disable=SC1090
+        source "$cand"
         break
     fi
 done
-if [ -z "$VENDOR_ENV" ]; then
-    echo "vendor set_env.bash not found for vendor='${VENDOR}'." >&2
-    echo "Searched:" >&2
-    echo "  ${ASCEND_OPP_PATH:-${ASCEND_HOME_PATH}/opp}/vendors/${VENDOR}_transformer/bin/set_env.bash" >&2
-    echo "  $(realpath "${ASCEND_HOME_PATH}/../")/vendors/${VENDOR}_transformer/bin/set_env.bash" >&2
-    echo "Did you install the run package?" >&2
-    exit 1
-fi
-# shellcheck disable=SC1090
-source "$VENDOR_ENV"
 
 # 3. Resolve include/lib paths the same way build.sh does
 #    (build.sh:582-588: prefer ASCEND_CUSTOM_OPP_PATH if set, else fall back
@@ -90,6 +84,18 @@ if [ -n "${ASCEND_CUSTOM_OPP_PATH:-}" ]; then
 else
     CUST_LIBRARY_PATH="${ASCEND_OPP_PATH}/vendors/${VENDOR}_transformer/op_api/lib"
     CUST_INCLUDE_PATH="${ASCEND_OPP_PATH}/vendors/${VENDOR}_transformer/op_api/include"
+fi
+
+# Sanity-check the resolved paths before invoking g++.
+if [ ! -f "${CUST_LIBRARY_PATH}/libcust_opapi.so" ]; then
+    echo "libcust_opapi.so not found at ${CUST_LIBRARY_PATH}/" >&2
+    echo "Did you install the run package built from this branch?" >&2
+    exit 1
+fi
+if [ ! -f "${ACLNNOP_INCLUDE_PATH}/aclnn_fused_infer_attention_score_v5.h" ]; then
+    echo "FIAS V5 header not found at ${ACLNNOP_INCLUDE_PATH}/" >&2
+    echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH} may not have aclnnop headers for arch ${ARCH_INFO}." >&2
+    exit 1
 fi
 
 BIN="${CURRENT_DIR}/fias_perf"
