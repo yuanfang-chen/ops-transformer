@@ -149,6 +149,21 @@ int main(int argc, char **argv) {
     void *pseDev = nullptr;
     aclTensor *pseT = nullptr;
 
+    // Attention mask: this branch's type-erasure refactor (commit 643231f8)
+    // set HasAttenMask=true unconditionally in all template SEL blocks and
+    // claimed a runtime flag would gate the actual mask GM copy when no
+    // mask is provided. But the kernel init does
+    //     constInfo.hasAttenMaskRT = hasAtten
+    // where `hasAtten` is the template parameter — always true after the
+    // erasure. So when the user passes attenMask=nullptr, the kernel still
+    // tries to copy from a null GM and the device aborts (ACL 507015).
+    // Workaround for the bench: pass a zero-init mask of the canonical
+    // [Sq, Skv] shape so the runtime guard's (broken) always-true branch
+    // copies from a real allocation instead of nullptr.
+    std::vector<int64_t> maskShape = {cfg.seqlen_q, cfg.seqlen_kv};
+    void *maskDev = nullptr;
+    aclTensor *maskT = AllocTensor(maskShape, ACL_BOOL, &maskDev);
+
     // 3. Scalar params. Values mirror examples/arch35/test_aclnn_fused_infer_attention_score_v5.cpp:177-192.
     int64_t numHeads = cfg.num_q_heads;
     int64_t numKvHeads = cfg.num_kv_heads;
@@ -173,7 +188,7 @@ int main(int argc, char **argv) {
     aclOpExecutor *executor = nullptr;
     auto ret = aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
         qT, kList, vList, /*pseShift*/ pseT,
-        /*attenMask*/ nullptr, /*actSeqLen*/ nullptr, /*actSeqLenKv*/ nullptr,
+        /*attenMask*/ maskT, /*actSeqLen*/ nullptr, /*actSeqLenKv*/ nullptr,
         /*deqScale1*/ nullptr, /*quantScale1*/ nullptr,
         /*deqScale2*/ nullptr, /*quantScale2*/ nullptr, /*quantOffset2*/ nullptr,
         /*antiquantScale*/ nullptr, /*antiquantOffset*/ nullptr,
@@ -254,6 +269,7 @@ int main(int argc, char **argv) {
     aclDestroyTensor(kT);
     aclDestroyTensor(vT);
     aclDestroyTensor(oT);
+    aclDestroyTensor(maskT);
     if (pseT != nullptr) aclDestroyTensor(pseT);
     (void)kList;
     (void)vList;
@@ -261,6 +277,7 @@ int main(int argc, char **argv) {
     aclrtFree(kDev);
     aclrtFree(vDev);
     aclrtFree(oDev);
+    aclrtFree(maskDev);
     if (pseDev != nullptr) aclrtFree(pseDev);
     if (workspaceSize > 0U) aclrtFree(wsAddr);
     CHECK_ACL(aclrtDestroyStream(stream));
