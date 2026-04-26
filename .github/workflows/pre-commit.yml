@@ -240,14 +240,17 @@ jobs:
 
       - name: prepare python env for pytest
         # The pytest gate's prereq probe checks `import torch; import torch_npu`
-        # in the container's python3. Install both via the NJU pip mirror
+        # in the runner's python3. Install both via the NJU pip mirror
         # (PyPI is corp-blocked; mirror is fast + inside the firewall).
-        # Retry pattern mirrors the other env-prep steps. Idempotent on
-        # subsequent runs once the wheels are cached.
+        # `--trusted-host` skips cert verification on bare-host runners
+        # whose system CA bundle doesn't carry the corp MITM CA.
+        # Retry pattern mirrors the other env-prep steps.
         #
-        # The runner functions don't source CANN setenv, so set the runtime
-        # env vars inline for any subsequent torch_npu / aclnn calls. CANN
-        # paths follow the standard layout from `${ASCEND_HOME_PATH}/bin/setenv.bash`.
+        # CANN install layout differs across runners (a2 container ships
+        # everything under cann-X/lib64/; a5 host ships under
+        # cann-X/<arch>-linux/lib64/). Anchor on libhccl.so to discover the
+        # actual lib64 dir and persist `CANN` + `CANN_LD` to $GITHUB_ENV
+        # so subsequent steps reuse them without re-discovering.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
@@ -263,11 +266,24 @@ jobs:
             echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
+          # Locate the runner's CANN lib64 dir. libhccl.so is a stable
+          # anchor — it lives at ${CANN}/lib64/libhccl.so on every CANN
+          # install regardless of the surrounding directory layout.
+          LIB64=$("${RUNNER_FN}" bash -c 'find /usr/local/Ascend -maxdepth 5 -name libhccl.so -type f 2>/dev/null | head -1 | xargs -r dirname' | tr -d '\r\n')
+          if [ -z "$LIB64" ]; then
+            echo "could not find libhccl.so under /usr/local/Ascend on runner"
+            exit 1
+          fi
+          CANN=$(dirname "$LIB64")
+          # Both arch-specific devlib subdirs are listed; non-existent
+          # entries on LD_LIBRARY_PATH are harmless to the loader.
+          CANN_LD="${LIB64}:${LIB64}/plugin/opskernel:${LIB64}/plugin/nnengine:${CANN}/runtime/lib64:${CANN}/devlib:${CANN}/devlib/aarch64:${CANN}/devlib/x86_64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver"
+          echo "discovered CANN=${CANN}"
+          echo "CANN=${CANN}" >> "$GITHUB_ENV"
+          echo "CANN_LD=${CANN_LD}" >> "$GITHUB_ENV"
           # Verify both modules import — needs CANN runtime libs on
           # LD_LIBRARY_PATH so torch_npu's libmetadef.so dlopen resolves
           # `ge::AscendString` symbols at process start.
-          CANN=/usr/local/Ascend/cann-9.0.0-beta.2
-          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver"
           "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" python3 -c 'import torch, torch_npu'
 
       - name: install run pkg before pytest
@@ -283,13 +299,11 @@ jobs:
         # Find the .run path with a tiny single-quoted script (no inner
         # quotes — survives the test_runner ssh-side `"..."` parse, where
         # embedded `"` would terminate the outer quoting and expand
-        # `$pkg`/`$(...)` on A2 instead of in the container). Then pass
-        # the resolved path back to ${RUNNER_FN} as plain argv.
+        # `$pkg`/`$(...)` on the gateway side). `$CANN`/`$CANN_LD` come
+        # from the prep step above via $GITHUB_ENV.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          CANN=/usr/local/Ascend/cann-9.0.0-beta.2
-          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver"
           pkg=$("${RUNNER_FN}" bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
           if [ -z "$pkg" ]; then
             echo "no .run pkg under build_out/ — was the compile gate run?"
@@ -300,17 +314,15 @@ jobs:
           "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" "$pkg" --quiet
 
       - name: pytest
-        # CANN runtime libs required at process start (see torch_npu dlopen
-        # comment in the prep step above). Plus the just-installed op-api
-        # lib dir, so aclnn finds libops_transformer_aclnn.so. Workflow env
-        # vars (JOBS, FORCE_COLOR, SOC, OP, STRICT_FLAG) cross the
-        # test_runner boundary via env=val pairs.
+        # `$CANN`/`$CANN_LD` come from the prep step. Prepend the just-
+        # installed op-api lib dir so aclnn finds libops_transformer_aclnn.so.
+        # Workflow env vars (JOBS, FORCE_COLOR, SOC, OP, STRICT_FLAG) cross
+        # the test_runner boundary via env=val pairs.
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          CANN=/usr/local/Ascend/cann-9.0.0-beta.2
-          CANN_LD="${CANN}/lib64:${CANN}/runtime/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/devlib:${CANN}/devlib/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:${CANN}/opp/vendors/custom_transformer/op_api/lib"
-          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" \
+          PYTEST_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib:${CANN_LD}"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${PYTEST_LD}" \
             JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
             stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
 
