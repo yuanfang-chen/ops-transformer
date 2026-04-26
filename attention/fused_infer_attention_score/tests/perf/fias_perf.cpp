@@ -52,15 +52,17 @@ namespace {
     } while (0)
 
 struct Config {
-    // Decode shape: one Q token, 4K KV context, GQA 32→8 heads, head_dim=128, fp16.
-    // Layout BNSD because the FIAS V5 example in-tree uses BNSD; this is the
-    // path the existing example known-good case exercises.
+    // Match the in-tree FIAS V5 example exactly — that's the smallest
+    // known-working case for our custom ascend950 build:
+    //   examples/arch35/test_aclnn_fused_infer_attention_score_v5.cpp:106-111
+    // Once this baseline runs cleanly we can scale up (GQA, longer seqlen,
+    // BSND layout, PSE on) one variable at a time.
     int64_t batch = 1;
-    int64_t seqlen_q = 1;
-    int64_t seqlen_kv = 4096;
-    int64_t num_q_heads = 32;
-    int64_t num_kv_heads = 8;
-    int64_t head_dim = 128;
+    int64_t seqlen_q = 2;
+    int64_t seqlen_kv = 2;
+    int64_t num_q_heads = 2;
+    int64_t num_kv_heads = 2;
+    int64_t head_dim = 16;
 
     int warmup = 5;
     int iters = 100;
