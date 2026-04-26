@@ -69,32 +69,29 @@ for cand in "${ASCEND_OPP_PATH:-${ASCEND_HOME_PATH}/opp}/vendors/${VENDOR}_trans
     fi
 done
 
-# 3. Resolve include/lib paths the same way build.sh does
-#    (build.sh:582-588: prefer ASCEND_CUSTOM_OPP_PATH if set, else fall back
-#     to ${ASCEND_OPP_PATH}/vendors/...).
+# 3. Resolve include/lib paths.
 ARCH_INFO=$(uname -m)
 INCLUDE_PATH="${ASCEND_HOME_PATH}/include"
 ACLNNOP_INCLUDE_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 EAGER_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
-if [ -n "${ASCEND_CUSTOM_OPP_PATH:-}" ]; then
-    CUST_VENDORS_PATH=$(dirname "${ASCEND_CUSTOM_OPP_PATH%%:*}")
-    CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${VENDOR}_transformer/op_api/lib"
-    CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${VENDOR}_transformer/op_api/include"
-else
-    CUST_LIBRARY_PATH="${ASCEND_OPP_PATH}/vendors/${VENDOR}_transformer/op_api/lib"
-    CUST_INCLUDE_PATH="${ASCEND_OPP_PATH}/vendors/${VENDOR}_transformer/op_api/include"
-fi
-
 # Sanity-check the resolved paths before invoking g++.
-if [ ! -f "${CUST_LIBRARY_PATH}/libcust_opapi.so" ]; then
-    echo "libcust_opapi.so not found at ${CUST_LIBRARY_PATH}/" >&2
-    echo "Did you install the run package built from this branch?" >&2
-    exit 1
-fi
 if [ ! -f "${ACLNNOP_INCLUDE_PATH}/aclnn_fused_infer_attention_score_v5.h" ]; then
     echo "FIAS V5 header not found at ${ACLNNOP_INCLUDE_PATH}/" >&2
     echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH} may not have aclnnop headers for arch ${ARCH_INFO}." >&2
+    exit 1
+fi
+
+# CANN ships the FIAS aclnn entry points in libopapi_transformer.so (the
+# standard CANN aclnn lib), not in the vendor's libcust_opapi.so — that
+# only contains ops the run package actually emitted as new aclnn functions
+# (e.g. ApplyRotaryPosEmb). FIAS V5 already exists in CANN proper; the
+# custom run package overrides the device-side kernel via the op_master
+# scheduler reading ${ASCEND_OPP_PATH}/vendors/config.ini, NOT via a
+# replacement aclnn symbol. So we link against -lopapi_transformer.
+TRANSFORMER_LIB_DIR="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/lib64"
+if [ ! -f "${TRANSFORMER_LIB_DIR}/libopapi_transformer.so" ]; then
+    echo "libopapi_transformer.so not found at ${TRANSFORMER_LIB_DIR}/" >&2
     exit 1
 fi
 
@@ -104,17 +101,19 @@ echo "== Building fias_perf =="
 echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH}"
 echo "ASCEND_OPP_PATH=${ASCEND_OPP_PATH:-(unset)}"
 echo "ASCEND_CUSTOM_OPP_PATH=${ASCEND_CUSTOM_OPP_PATH:-(unset)}"
-echo "CUST_INCLUDE_PATH=${CUST_INCLUDE_PATH}"
-echo "CUST_LIBRARY_PATH=${CUST_LIBRARY_PATH}"
+echo "TRANSFORMER_LIB_DIR=${TRANSFORMER_LIB_DIR}"
 
-# 4. Compile flags mirror build.sh's --run_example PKG_MODE=cust path
-#    (build.sh:589-596).
+# Compile flags mirror build.sh's --run_example PKG_MODE='' path
+# (build.sh:570-576), which links against -lopapi_transformer for ops
+# already present in CANN proper (FIAS is one). We don't need
+# -lcust_opapi here because FIAS V5's aclnn entry points are not in the
+# vendor's lib.
 g++ "${CURRENT_DIR}/fias_perf.cpp" \
     -O2 -std=c++17 \
-    -I "${CUST_INCLUDE_PATH}" -I "${INCLUDE_PATH}" -I "${ACLNNOP_INCLUDE_PATH}" \
-    -L "${CUST_LIBRARY_PATH}" -L "${EAGER_LIBRARY_PATH}" \
-    -lopapi_math -lcust_opapi -lascendcl -lnnopbase -lc_sec \
-    -Wl,-rpath="${CUST_LIBRARY_PATH}" \
+    -I "${INCLUDE_PATH}" -I "${ACLNNOP_INCLUDE_PATH}" \
+    -L "${TRANSFORMER_LIB_DIR}" -L "${EAGER_LIBRARY_PATH}" \
+    -lopapi_math -lopapi_transformer -lascendcl -lnnopbase -lc_sec \
+    -Wl,-rpath="${TRANSFORMER_LIB_DIR}" \
     -o "${BIN}"
 
 echo "== Running fias_perf =="
