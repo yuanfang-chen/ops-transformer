@@ -1,0 +1,18 @@
+name: zta5 build check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: [self-hosted, zta5]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show runner info
+        run: |
+          echo "Runner: $(hostname)"
+          uname -a
+
+      - name: Build (ophost, ascend950)
+        run: bash build.sh -u --ophost --soc=ascend950 -j16
