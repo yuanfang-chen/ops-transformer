@@ -109,11 +109,15 @@ jobs:
         # Per the bench README: install into ${ASCEND_OPP_PATH} so
         # op_master sees one canonical vendor. `--quiet` accepts the
         # EULA and runs the embedded install script (the makeself
-        # wrapper has no plain `--install` flag).
+        # wrapper has no plain `--install` flag). ASCEND_OPP_PATH is
+        # exported by the gateway's reach function (test_runner.bash);
+        # no per-step `source set_env.sh` needed — and on the current
+        # a5 layout the CANN install is at /home/triton_ascend/...,
+        # not the toolkit's default /usr/local/Ascend/, so a hardcoded
+        # source would point at the wrong tree.
         run: |
           source ~/test_runner.bash
           "${RUNNER_FN}" bash -lc 'set -e
-            source /usr/local/Ascend/ascend-toolkit/set_env.sh
             pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1)
             test -n "$pkg" || { echo "no .run pkg under build_out/"; exit 1; }
             echo "installing $pkg into ${ASCEND_OPP_PATH}"
