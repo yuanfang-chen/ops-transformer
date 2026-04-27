@@ -1,0 +1,137 @@
+name: fias-perf-bench
+
+# Run the FIAS NPU kernel-time benchmark
+# (attention/fused_infer_attention_score/tests/perf/) on a real ascend950
+# host. Builds the FIAS run package at the requested commit, installs it
+# into ${ASCEND_OPP_PATH}, then invokes run.sh and streams the median
+# timing into the job log.
+#
+# Used to verify the ec7ad647 hasAttenMaskRT fix (attenMask=nullptr
+# round-trip) and as a before/after harness for compile-time-reduction
+# refactors of the FIAS dispatch table — see the bench README for
+# acceptance criteria.
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit SHA (or any rev that resolves on the runner) to test.
+        required: false
+        default: ec7ad647
+        type: string
+      branch:
+        description: Branch the commit lives on. Used as the fetch ref before reset.
+        required: false
+        default: claude/fias-compilation-review-B7et5
+        type: string
+      runner:
+        description: Runner label. ascend950 → a5 per the SoC mapping in pre-commit.yml.
+        required: false
+        default: a5
+        type: string
+
+concurrency:
+  group: runner-singleton-${{ inputs.runner }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  bench:
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ inputs.runner }}
+    timeout-minutes: 240
+    env:
+      COMMIT: ${{ inputs.commit }}
+      BRANCH: ${{ inputs.branch }}
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner) }}
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+    steps:
+      - name: prepare runner TLS trust
+        # Mirrors pre-commit.yml. Idempotent on hosts that already trust
+        # the Huawei CA; no-op on subsequent runs.
+        run: |
+          source ~/test_runner.bash
+          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+            echo "runner TLS trust already includes Huawei CA — skipping bundle install"
+          else
+            echo "installing Huawei CA into runner bundle"
+            "${RUNNER_FN}" update-ca-certificates --fresh
+            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+          fi
+          "${RUNNER_FN}" git config --system http.postBuffer 524288000
+          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
+          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
+
+      - name: sync runner to ${{ inputs.commit }}
+        # Fetch the branch that carries the bugfix commit, then hard-reset
+        # to the exact SHA. Untracked dirs (build/, build_out/, ccache)
+        # are preserved so a hot ccache survives across runs.
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3 4 5; do
+            if "${RUNNER_FN}" git fetch --force --prune origin "${BRANCH}"; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
+              exit 1
+            fi
+            base=$((5 * (2 ** (attempt - 1))))
+            jitter=$((RANDOM % base))
+            delay=$((base + jitter))
+            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+          "${RUNNER_FN}" git reset --hard "${COMMIT}"
+          "${RUNNER_FN}" git log -1 --oneline
+
+      - name: show environment
+        run: |
+          source ~/test_runner.bash
+          echo "commit=${COMMIT}  branch=${BRANCH}  runner=${RUNNER_FN}"
+          "${RUNNER_FN}" bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version 2>/dev/null | head -1 || echo "no ccache"; ccache -s 2>/dev/null | head -20 || true'
+
+      - name: build FIAS run package (ascend950)
+        # Cold-cache build is ≥90 min per ec7ad647's commit message.
+        # Hot-cache (rebuild of the same commit) drops substantially.
+        # `stdbuf -oL` so the live job log streams instead of buffering.
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" stdbuf -oL -eL bash build.sh --pkg --ops=fused_infer_attention_score --soc=ascend950 -j64 -O3
+
+      - name: install run package
+        # Per the bench README: install into ${ASCEND_OPP_PATH} so
+        # op_master sees one canonical vendor. `--quiet` accepts the
+        # EULA and runs the embedded install script (the makeself
+        # wrapper has no plain `--install` flag).
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" bash -lc 'set -e
+            source /usr/local/Ascend/ascend-toolkit/set_env.sh
+            pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1)
+            test -n "$pkg" || { echo "no .run pkg under build_out/"; exit 1; }
+            echo "installing $pkg into ${ASCEND_OPP_PATH}"
+            chmod +x "$pkg"
+            "$pkg" --quiet --install-path="${ASCEND_OPP_PATH}"'
+
+      - name: run fias_perf bench
+        # run.sh sources CANN env, compiles fias_perf.cpp, and prints
+        # one summary line with median/min/p95/max in microseconds. If
+        # the hasAttenMaskRT fix landed correctly the binary completes
+        # cleanly; if not, expect ACL 507015 at aclrtSynchronizeStream.
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" stdbuf -oL -eL bash attention/fused_infer_attention_score/tests/perf/run.sh
+
+      - name: ccache stats (post-build, for hot/cold visibility)
+        if: always()
+        continue-on-error: true
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" bash -c 'ccache -s 2>/dev/null | head -20 || true'
