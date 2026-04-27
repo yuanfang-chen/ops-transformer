@@ -2,6 +2,11 @@ name: zta5 build check
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - claude/check-gh-runners-Ux4Ti
+    paths:
+      - .github/workflows/zta5-build-check.yml
 
 jobs:
   build:
