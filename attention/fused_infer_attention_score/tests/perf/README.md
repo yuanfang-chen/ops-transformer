@@ -69,12 +69,13 @@ Expected output on success is one line:
 fias_perf decode  B=1 Sq=2 Skv=2 Nq=2 Nkv=2 D=16 BNSD fp16  median=NN.NN us  min=...  p95=...  max=...  iters=100  warmup=5
 ```
 
-If you see `ACL error 507015 at ... (aclrtSynchronizeStream)` instead,
-the kernel launched on the device but aborted asynchronously. As of the
-2026-04-26 run on this branch, this reproduces with the example's exact
-shape (1,2,2,16) and zero-initialized inputs — meaning the regression
-is structural in the kernel binary, not a config or data issue. See the
-session notes for diagnosis history.
+If you see `ACL error 507015 at ... (aclrtSynchronizeStream)`, the
+kernel launched but aborted asynchronously. This was the symptom of
+a wiring bug in the type-erasure refactor where
+`constInfo.hasAttenMaskRT` got the (always-true) template param
+instead of a true runtime signal — fixed by reading
+`tilingData->inputParamsRegbase.attenMaskS1Size > 0` at the 6 init
+sites.
 
 ## Diffing across a refactor
 

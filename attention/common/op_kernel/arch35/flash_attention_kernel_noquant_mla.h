@@ -354,7 +354,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
         this->attenMaskInfo.bandIndex = inputParamsRegbase.bandIndex;
     }
 
-    constInfo.hasAttenMaskRT = hasAtten;
+    constInfo.hasAttenMaskRT = (inputParamsRegbase.attenMaskS1Size > 0);
     constInfo.isRowInvalid = inputParamsRegbase.isRowInvalid;
     constInfo.headNumRatio = inputParamsRegbase.headNumRatio;
     constInfo.dSizeRope = inputParamsRegbase.ropeHeadSize;
