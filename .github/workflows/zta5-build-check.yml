@@ -40,6 +40,15 @@ jobs:
           zta5runner git reset --hard "${GITHUB_SHA}"
 
       - name: build (ophost, ascend950)
+        id: build
+        run: |
+          set -o pipefail
+          source ~/test_runner.bash
+          zta5runner bash -c 'rm -f /tmp/zta5_build.log; bash build.sh -u --ophost --soc=ascend950 -j16 2>&1 | tee /tmp/zta5_build.log; exit "${PIPESTATUS[0]}"'
+
+      - name: dump build log tail
+        if: always()
         run: |
           source ~/test_runner.bash
-          zta5runner bash build.sh -u --ophost --soc=ascend950 -j16
+          echo "===== last 200 lines of /tmp/zta5_build.log ====="
+          zta5runner tail -n 200 /tmp/zta5_build.log || true
