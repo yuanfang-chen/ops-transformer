@@ -266,16 +266,15 @@ jobs:
             echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
-          # Locate ASCEND_HOME_PATH by finding the opp/ directory: it's
-          # the canonical anchor across CANN install layouts. On a2's
-          # aarch64 container, ${HOME}/lib64 is the real lib dir; on a5's
-          # x86 host, ${HOME}/lib64 is a symlink to x86_64-linux/lib64
-          # (the loader follows symlinks, so paths built off ${HOME}/lib64
-          # work for both). Anchoring on libhccl.so instead would land us
-          # inside the arch subdir on a5 and miss opp/.
-          CANN=$("${RUNNER_FN}" bash -c 'find /usr/local/Ascend -maxdepth 3 -name opp -type d 2>/dev/null | head -1 | xargs -r dirname' | tr -d '\r\n')
+          # ASCEND_HOME_PATH is exported by the gateway's reach
+          # function (test_runner.bash) on every runner class, so just
+          # trust it. The earlier `find /usr/local/Ascend -name opp`
+          # dance broke when a5's CANN moved to /home/triton_ascend/...
+          # and was always brittle anyway (relied on the install
+          # landing under one specific prefix).
+          CANN=$("${RUNNER_FN}" bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
           if [ -z "$CANN" ]; then
-            echo "could not find CANN install (opp/ dir) under /usr/local/Ascend on runner"
+            echo "ASCEND_HOME_PATH unset on runner — gateway test_runner.bash not exporting env?"
             exit 1
           fi
           # Both arch-specific devlib subdirs are listed; non-existent

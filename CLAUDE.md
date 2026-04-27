@@ -146,10 +146,19 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   - **a5 (950)**: a **bare host** reached directly via SSH — no
     docker. Workspace `/home/s00624178/.cyf/ops-transformer`; the
     reach function sources `~/.cyf/.bashrc` and `cd`s into the
-    workspace before running the command. CANN under
-    `${ASCEND_HOME_PATH}/x86_64-linux/lib64/` with the top-level
-    `lib64` as a symlink. python3 is 3.8. `ASCEND_HOME_PATH` is
-    unset by default.
+    workspace before running the command. CANN install location is
+    not under `/usr/local/Ascend/` — currently at
+    `/home/triton_ascend/CANN/0413/cann-9.0.0/`, with libs flat at
+    `${ASCEND_HOME_PATH}/lib64/`. python3 is 3.8.
+- The gateway's `test_runner.bash` exports `ASCEND_HOME_PATH`,
+  `ASCEND_OPP_PATH`, `LD_LIBRARY_PATH`, `PATH`, etc. into the env
+  before invoking the runner command on every runner class. Workflows
+  should trust those vars rather than walking the filesystem or
+  hardcoding `/usr/local/Ascend/...` — the install location moves
+  (e.g. a5 lives under `/home/triton_ascend/...`) and any path-baked
+  assumption breaks. Likewise: do NOT `source set_env.sh` in workflow
+  steps — at best it's redundant, at worst it points at a different
+  CANN tree from the one the gateway selected.
 - The label-to-agent relationship is many-to-many: GH Actions
   auto-distributes jobs to whichever agent with the matching label is
   free. **Adding capacity** = register more agents on the gateway with
@@ -195,25 +204,24 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   logic across multiple `${RUNNER_FN}` calls so each is plain argv
   (the pattern used by `pre-commit.yml`'s install / pytest steps), or
   base64-encode the script (the pattern used by `remote-exec.yml`).
-- **CANN path discovery for pytest**: because the install layout
-  differs across runners (see Topology bullet), `pre-commit.yml`'s
-  `prepare python env for pytest` step finds `${ASCEND_HOME_PATH}` by
-  searching for `opp/` (the only directory always at the top level on
-  both layouts) and persists `CANN` + `CANN_LD` via `$GITHUB_ENV` for
-  the install and pytest steps. Anchoring on a lib (e.g. `libhccl.so`)
-  lands inside the arch subdir on a5 and breaks `ASCEND_OPP_PATH`.
-  `LD_LIBRARY_PATH` must put `${CANN}/lib64` ahead of `${CANN}/devlib`
-  — the container's baked-in default reverses this and loads stub
-  libraries that fail with `_ZN2ge12AscendStringC1EPKc undefined`.
-- **NPU runtime currently broken on both runners** (as of 2026-04):
-  `aclInit` fails with `chipType=0 / rtGetDevMsg unsupported` because
-  the userspace driver libs in `/usr/local/Ascend/driver/lib64/` don't
-  match the loaded kernel module — `npu-smi` itself errors with
-  `undefined symbol: drvSetDeviceInfo`. The pytest gate's plumbing is
-  fully wired and validated end-to-end (pip install, `.run --quiet`
-  install, test discovery, NPU-free code paths), but `set_device(0)`
-  fails until the host operator refreshes the driver libs. This is
-  host-side infra; don't re-debug it from the workflow side.
+- **CANN path discovery for pytest**: `pre-commit.yml`'s
+  `prepare python env for pytest` step reads `${ASCEND_HOME_PATH}`
+  from the runner (exported by the gateway's `test_runner.bash`) and
+  persists `CANN` + `CANN_LD` via `$GITHUB_ENV` for the install and
+  pytest steps. The earlier `find /usr/local/Ascend -name opp` walk
+  was removed because the install location is not under
+  `/usr/local/Ascend/` on every runner (a5 lives under
+  `/home/triton_ascend/...`). `LD_LIBRARY_PATH` historically had to
+  put `${CANN}/lib64` ahead of `${CANN}/devlib` to avoid loading
+  stub libraries that fail with `_ZN2ge12AscendStringC1EPKc
+  undefined`; the gateway-exported `LD_LIBRARY_PATH` already orders
+  these correctly.
+- **NPU runtime**: aclInit + aclrtSetDevice succeed on a5 as of
+  2026-04-27 (verified via remote-exec probe with a tiny C++ binary
+  that calls them directly — no Python / torch_npu involved). Earlier
+  `chipType=0 / rtGetDevMsg unsupported` failures were userspace
+  driver libs out of sync with the kernel module on the host; that's
+  been resolved.
 - Ad-hoc commands on a real runner: `gh workflow run remote-exec.yml
   -f runner=a2 -f script="<multi-line bash>"` (or any other runner
   label). The script runs on the chosen runner via the matching
