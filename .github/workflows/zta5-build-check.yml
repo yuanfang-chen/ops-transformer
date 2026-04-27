@@ -8,16 +8,38 @@ on:
     paths:
       - .github/workflows/zta5-build-check.yml
 
+concurrency:
+  group: runner-singleton-zta5
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
 jobs:
   build:
-    runs-on: [self-hosted, zta5]
+    runs-on: [self-hosted, Linux, X64, zta5]
+    timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Show runner info
+      - name: sync container to dispatched SHA
         run: |
-          echo "Runner: $(hostname)"
-          uname -a
+          set -x
+          source ~/test_runner.bash
+          for attempt in 1 2 3 4 5; do
+            if zta5runner git fetch --progress --force --prune origin "${GITHUB_REF}"; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
+              exit 1
+            fi
+            base=$((5 * (2 ** (attempt - 1))))
+            delay=$((base + (RANDOM % base)))
+            sleep "$delay"
+          done
+          zta5runner git reset --hard "${GITHUB_SHA}"
 
-      - name: Build (ophost, ascend950)
-        run: bash build.sh -u --ophost --soc=ascend950 -j16
+      - name: build (ophost, ascend950)
+        run: |
+          source ~/test_runner.bash
+          zta5runner bash build.sh -u --ophost --soc=ascend950 -j16
