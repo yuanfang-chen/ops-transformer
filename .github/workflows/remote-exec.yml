@@ -37,7 +37,13 @@ defaults:
 jobs:
   remote-exec:
     runs-on: [self-hosted, Linux, X64, "${{ inputs.runner }}"]
-    timeout-minutes: 30
+    # Default 30 min covers ad-hoc probes; bumped to 240 on this branch
+    # to absorb a full ascend950 FIAS .run package rebuild (≥90 min
+    # cold-cache, less when ccache is hot) when this workflow is
+    # dispatched with --ref to drive the perf bench. Revert to 30 once
+    # fias-perf-bench.yml lands on the default branch and is used
+    # directly.
+    timeout-minutes: 240
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
       SCRIPT: ${{ inputs.script }}
