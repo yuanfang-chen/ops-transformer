@@ -94,6 +94,21 @@ BenchResult BenchFias(int64_t B, int64_t N, int64_t Nkv, int64_t Sq, int64_t Skv
     aclTensorList *kList = aclCreateTensorList(kArr, 1);
     aclTensorList *vList = aclCreateTensorList(vArr, 1);
 
+    // For sparseMode 2/3/4 the kernel needs a 2048x2048 compressed bool
+    // attenMask. Contents don't matter for timing, but the tensor must
+    // exist with that exact shape — see mask_checker.cpp.
+    void *maskDev = nullptr;
+    aclTensor *maskT = nullptr;
+    if (sparseMode == 2 || sparseMode == 3 || sparseMode == 4) {
+        std::vector<int64_t> maskShape = {2048, 2048};
+        int64_t mBytes = 2048 * 2048;
+        CHECK_ACL(aclrtMalloc(&maskDev, mBytes, ACL_MEM_MALLOC_HUGE_FIRST));
+        CHECK_ACL(aclrtMemset(maskDev, mBytes, 0, mBytes));
+        std::vector<int64_t> mStrides = {2048, 1};
+        maskT = aclCreateTensor(maskShape.data(), maskShape.size(), aclDataType::ACL_BOOL, mStrides.data(), 0,
+                                aclFormat::ACL_FORMAT_ND, maskShape.data(), maskShape.size(), maskDev);
+    }
+
     char layout[8];
     std::strcpy(layout, "BNSD");
     double scaleValue = 1.0 / std::sqrt((double)D);
@@ -105,7 +120,7 @@ BenchResult BenchFias(int64_t B, int64_t N, int64_t Nkv, int64_t Sq, int64_t Skv
         CHECK_RET(aclnnFusedInferAttentionScoreV4GetWorkspaceSize(
             qT, kList, vList,
             /* pseShift              */ nullptr,
-            /* attenMask             */ nullptr,
+            /* attenMask             */ maskT,
             /* actualSeqLengths      */ nullptr,
             /* actualSeqLengthsKv    */ nullptr,
             /* deqScale1             */ nullptr,
@@ -193,10 +208,12 @@ BenchResult BenchFias(int64_t B, int64_t N, int64_t Nkv, int64_t Sq, int64_t Skv
     aclDestroyTensorList(vList);
     aclDestroyTensor(qT);
     aclDestroyTensor(oT);
+    if (maskT) aclDestroyTensor(maskT);
     aclrtFree(qDev);
     aclrtFree(kDev);
     aclrtFree(vDev);
     aclrtFree(oDev);
+    if (maskDev) aclrtFree(maskDev);
 
     std::sort(us.begin(), us.end());
     double sum = 0;
