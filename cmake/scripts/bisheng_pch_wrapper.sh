@@ -51,10 +51,17 @@ dbg() { if [ "${FIAS_PCH_DEBUG:-0}" = "1" ]; then printf '%s\n' "$*" >> "$WRAPPE
 # Decide if this invocation is a FIA arch32 kernel compile we should PCH-ify.
 # We match by source-file basename in argv. The list mirrors the kernel TUs
 # that include the prelude content (see audit in plan Step 1).
+#
+# The CANN framework runs bisheng TWICE per kernel binary: once with -E to
+# preprocess (template-tiling-key extraction), once for the real codegen.
+# PCH machinery is irrelevant in -E mode — it's just the preprocessor — so
+# we only PCH-ify the real-compile invocations.
 is_fia_kernel_compile=0
+is_preprocess_only=0
 src_arg=""
 for arg in "$@"; do
     case "$arg" in
+        -E) is_preprocess_only=1 ;;
         */fused_infer_attention_score.cpp \
         |*/fused_infer_attention_score_v3.cpp \
         |*/flash_attention_interface.cpp \
@@ -65,7 +72,7 @@ for arg in "$@"; do
     esac
 done
 dbg "argv: $*"
-dbg "is_fia=$is_fia_kernel_compile src=$src_arg"
+dbg "is_fia=$is_fia_kernel_compile preproc=$is_preprocess_only src=$src_arg"
 
 run_real() {
     if [ -n "$CCACHE" ]; then
@@ -75,7 +82,9 @@ run_real() {
     fi
 }
 
-if [ $is_fia_kernel_compile -eq 0 ]; then
+if [ $is_fia_kernel_compile -eq 0 ] || [ $is_preprocess_only -eq 1 ]; then
+    # Non-FIA, OR FIA but in -E preprocess-only mode (CANN's
+    # template-tiling-key extraction pass). PCH doesn't apply; pass through.
     if [ -n "$CCACHE" ]; then
         exec "$CCACHE" "$REAL" "$@"
     else
