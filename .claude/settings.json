@@ -1,0 +1,117 @@
+{
+  "effortLevel": "high",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Edit", "Write",
+
+      "Bash(cmake:*)",
+
+      "Bash(make:*)",
+      "Bash(ninja:*)",
+      "Bash(ctest:*)",
+      "Bash(meson:*)",
+
+      "Bash(gcc:*)",
+      "Bash(g++:*)",
+      "Bash(clang:*)",
+      "Bash(clang++:*)",
+      "Bash(ld:*)",
+      "Bash(ar:*)",
+      "Bash(nm:*)",
+      "Bash(objdump:*)",
+      "Bash(readelf:*)",
+      "Bash(ldd:*)",
+      "Bash(strip:*)",
+      "Bash(pkg-config:*)",
+
+      "Bash(clang-format:*)",
+      "Bash(clang-tidy:*)",
+      "Bash(cpplint:*)",
+
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(uv:*)",
+      "Bash(poetry:*)",
+      "Bash(pytest:*)",
+      "Bash(mypy:*)",
+      "Bash(ruff:*)",
+      "Bash(black:*)",
+      "Bash(isort:*)",
+      "Bash(flake8:*)",
+
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git reset:*)",
+      "Bash(git clean -n:*)",
+      "Bash(git config --get:*)",
+      "Bash(git config --list)",
+      "Bash(git config user.name:*)",
+      "Bash(git config user.email:*)",
+
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(touch:*)",
+      "Bash(chmod:*)",
+      "Bash(ln:*)",
+      "Bash(tar:*)",
+      "Bash(unzip:*)",
+      "Bash(gzip:*)",
+      "Bash(gunzip:*)",
+
+      "Bash(which:*)",
+      "Bash(whereis:*)",
+      "Bash(env)",
+      "Bash(printenv:*)",
+      "Bash(echo:*)",
+
+      "Bash(gdb:*)",
+      "Bash(strace:*)",
+      "Bash(ltrace:*)",
+      "Bash(valgrind:*)",
+      "Bash(perf:*)",
+
+      "Bash(ps:*)",
+      "Bash(pgrep:*)",
+      "Bash(pidof:*)",
+      "Bash(lsof:*)",
+      "Bash(netstat:*)",
+      "Bash(ss:*)",
+
+      "Bash(gh issue *)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh api:*)",
+
+      "Bash(curl * -X POST * https://discord.com/api/webhooks/*)",
+
+      "Bash(./build/*)",
+      "Bash(./bin/*)",
+      "Bash(build/*)"
+    ],
+    "ask": [
+      "Bash(gh pr merge:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh repo delete:*)",
+
+      "Bash(git push:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(rm -rf:*)"
+    ]
+  }
+}
+

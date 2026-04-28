@@ -41,3 +41,4 @@ third_party/
 # ai
 .agents/
 .opencode/
+.claude/settings.local.json
