@@ -52,6 +52,7 @@ FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::InitUni
         this->constInfo.isPostQuantPerChnl = this->sharedParams.isPostQuantPerChnl;
         this->constInfo.isPostQuantBF16 = this->sharedParams.isPostQuantBF16;
     }
+    this->constInfo.hasAttenMaskRT = (this->tilingData->inputParamsRegbase.attenMaskS1Size > 0);
     this->constInfo.isRowInvalid = this->sharedParams.isRowInvalid;
     this->constInfo.headNumRatio = this->sharedParams.headNumRatio;
     this->constInfo.isGqa = this->sharedParams.isGqa;

@@ -363,6 +363,7 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
             }
         }
     }
+    this->constInfo.hasAttenMaskRT = (inputParamsRegbase.attenMaskS1Size > 0);
     this->constInfo.isRowInvalid = inputParamsRegbase.isRowInvalid;
     this->constInfo.headNumRatio = inputParamsRegbase.headNumRatio;
     this->constInfo.isGqa = inputParamsRegbase.isGqa;
