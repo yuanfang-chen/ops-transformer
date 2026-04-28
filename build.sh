@@ -78,6 +78,7 @@ else
     DEFAULT_INSTALL_DIR="/usr/local/Ascend/latest"
 fi
 BISHENG_FLAGS=""
+ENABLE_FIAS_PCH=FALSE
 CANN_3RD_LIB_PATH="${CURRENT_DIR}/third_party"
 CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON"
 
@@ -645,17 +646,38 @@ function gen_bisheng(){
     fi
 
     pushd ${gen_bisheng_dir}
-    $(> bisheng)
-    echo "#!/bin/bash" >> bisheng
-    echo "ccache_args=""\"""${ccache_program} ${BISHENG_REAL_PATH}""\"" >> bisheng
-    echo "args=""$""@" >> bisheng
 
-    if [ "${VERBOSE}" == "true" ];then
-        echo "echo ""\"""$""{ccache_args} ""$""args""\"" >> bisheng
+    if [ "${ENABLE_FIAS_PCH}" == "TRUE" ];then
+        # PCH-aware path: delegate to bisheng_pch_wrapper.sh which decides
+        # per-invocation whether to inject -include-pch for FIAS sources.
+        local pch_wrapper="${CURRENT_DIR}/cmake/scripts/bisheng_pch_wrapper.sh"
+        local prelude_header="${CURRENT_DIR}/attention/common/op_kernel/fias_kernel_prelude.h"
+        local pch_dir="${BUILD_DIR}/fias_pch"
+        mkdir -p "${pch_dir}"
+        cat > bisheng <<EOF
+#!/bin/bash
+export BISHENG_REAL_PATH="${BISHENG_REAL_PATH}"
+export FIAS_PCH=1
+export FIAS_PCH_DIR="${pch_dir}"
+export FIAS_PRELUDE_HEADER="${prelude_header}"
+export CCACHE_PROGRAM="${ccache_program}"
+exec "${pch_wrapper}" "\$@"
+EOF
+        chmod +x bisheng
+        echo "FIAS-PCH enabled: prelude=${prelude_header}, pch_dir=${pch_dir}"
+    else
+        $(> bisheng)
+        echo "#!/bin/bash" >> bisheng
+        echo "ccache_args=""\"""${ccache_program} ${BISHENG_REAL_PATH}""\"" >> bisheng
+        echo "args=""$""@" >> bisheng
+
+        if [ "${VERBOSE}" == "true" ];then
+            echo "echo ""\"""$""{ccache_args} ""$""args""\"" >> bisheng
+        fi
+
+        echo "eval ""\"""$""{ccache_args} ""$""args""\"" >> bisheng
+        chmod +x bisheng
     fi
-
-    echo "eval ""\"""$""{ccache_args} ""$""args""\"" >> bisheng
-    chmod +x bisheng
 
     export PATH=${gen_bisheng_dir}:$PATH
     popd
@@ -1094,6 +1116,10 @@ while [[ $# -gt 0 ]]; do
     --bisheng_flags=*)
         OPTARG=$1
         BISHENG_FLAGS=${OPTARG#*=}
+        shift
+        ;;
+    --enable-fias-pch)
+        ENABLE_FIAS_PCH=TRUE
         shift
         ;;
     -c|--compute-unit)
