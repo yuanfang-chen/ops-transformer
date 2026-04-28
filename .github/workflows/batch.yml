@@ -1,0 +1,220 @@
+name: batch
+
+# Manual batch iteration: run pre_commit_check.py across a cartesian product of
+# ops and SoCs in a single job. Kept as a bash loop (rather than a job matrix)
+# because matrix-on-soc would need separate runner labels per matrix entry,
+# and we want one job to walk one runner's container in order.
+# Gates default to compile,ut; override via the `gates` input for heavier runs.
+#
+# Runner selection: the `runner` input wins if set, else the first soc in
+# `socs` is mapped per the table at the top of pre-commit.yml. If you
+# dispatch with `socs="ascend910b ascend950"`, the whole job lands on the
+# runner picked from the FIRST soc — cross-runner parallelism would need
+# separate dispatches.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ops:
+        description: Space-separated op names
+        required: true
+        default: fused_infer_attention_score
+        type: string
+      socs:
+        description: Space-separated SoCs (ascend910b / ascend950)
+        required: true
+        default: ascend910b
+        type: string
+      gates:
+        description: "Gates to run (subset of: compile,ut,pytest,st). Empty = all."
+        required: false
+        default: compile,ut
+        type: string
+      strict:
+        description: Treat SKIPs as failures
+        required: false
+        default: false
+        type: boolean
+      fail_fast:
+        description: Stop at first failing (op, soc); if off, run all and report
+        required: false
+        default: false
+        type: boolean
+      runner:
+        description: |
+          Override runner label (any value a gateway has been registered
+          with). Empty → derive from the first soc in `socs` per the SoC
+          mapping at the top of pre-commit.yml.
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  # Per-runner singleton. Resolution expression repeated in `runs-on` and
+  # `env.RUNNER_FN` — keep them in sync.
+  group: runner-singleton-${{ inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  batch:
+    # Pick runner: explicit `inputs.runner` if set, else SoC-derived.
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
+    timeout-minutes: 480
+    env:
+      OPS: ${{ inputs.ops }}
+      SOCS: ${{ inputs.socs }}
+      GATES: ${{ inputs.gates }}
+      STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
+      FAIL_FAST: ${{ inputs.fail_fast }}
+      JOBS: '64'
+      FORCE_COLOR: '1'
+      # Reach-function name: ${runner-label}runner by convention.
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2') }}
+    steps:
+      # No actions/checkout — all work runs on the container via $RUNNER_FN
+      # (scripts live at /workspace/Src/ops-transformer inside the container).
+      # Nothing here references $GITHUB_WORKSPACE. Skipping checkout dodges
+      # the gateway's flaky gnutls TLS handshake against github.com.
+
+      - name: prepare container TLS trust
+        # Bundle install is idempotent (short-circuits via openssl-decoded
+        # grep). Git config bits (HTTP/1.1 pin, larger post-buffer, faster
+        # stall detection) are cheap to re-apply and we always set them.
+        # See pre-commit.yml for the full rationale.
+        run: |
+          source ~/test_runner.bash
+          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+            echo "container TLS trust already includes Huawei CA — skipping bundle install"
+          else
+            echo "installing Huawei CA into container bundle"
+            "${RUNNER_FN}" update-ca-certificates --fresh
+            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+          fi
+          "${RUNNER_FN}" git config --system http.postBuffer 524288000
+          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
+          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
+          echo "done"
+
+      - name: sync real runner to test SHA
+        # The container's workspace (/workspace/Src/ops-transformer) is an
+        # independent git clone, not a bind-mount of the gateway's checkout.
+        # Fetch the exact commit under CI from origin (GitHub) and hard-reset
+        # to it so gates run against the PR's code, not whatever stale state
+        # the container happens to be in. Untracked files (build/, ccache)
+        # are preserved so incremental builds stay warm.
+        #
+        # Retry the fetch because the corporate TLS-intercepting proxy flakes
+        # on github.com HTTPS intermittently (gnutls_handshake() failed). A
+        # couple of retries with backoff is almost always enough.
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3 4 5; do
+            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
+              exit 1
+            fi
+            # Exponential base (5, 10, 20, 40s) + up to 100% jitter
+            base=$((5 * (2 ** (attempt - 1))))
+            jitter=$((RANDOM % base))
+            delay=$((base + jitter))
+            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+          "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
+          "${RUNNER_FN}" git log -1 --oneline
+
+      - name: iterate (op × soc)
+        # The gateway only orchestrates; builds run on the real runner
+        # (docker container on a remote ssh host) via $RUNNER_FN
+        # (a2runner / a5runner), defined in the gateway's ~/test_runner.bash.
+        run: |
+          source ~/test_runner.bash
+          set -u
+          failed=()
+          passed=()
+          for soc in ${SOCS}; do
+            for op in ${OPS}; do
+              echo "::group::${op} on ${soc}"
+              if "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" scripts/pre_commit_check.py "${soc}" --op="${op}" --only="${GATES}" ${STRICT_FLAG}; then
+                passed+=("${op}/${soc}")
+                echo "::endgroup::"
+              else
+                failed+=("${op}/${soc}")
+                echo "::endgroup::"
+                if [ "${FAIL_FAST}" = "true" ]; then
+                  break 2
+                fi
+              fi
+            done
+          done
+          echo
+          echo "passed (${#passed[@]}): ${passed[*]:-(none)}"
+          echo "failed (${#failed[@]}): ${failed[*]:-(none)}"
+          [ ${#failed[@]} -eq 0 ]
+
+      - name: fetch logs from real runner
+        # Gates write logs under build/precommit on the container; pull them
+        # back via $RUNNER_FN. The command form (with args) doesn't allocate
+        # a PTY, so binary tar output passes through cleanly.
+        if: always()
+        continue-on-error: true
+        run: |
+          source ~/test_runner.bash
+          mkdir -p build/precommit
+          "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null \
+            | tar -C build/precommit -xf - || true
+          ls -la build/precommit/ || true
+
+      - name: print log tails
+        # Embed each gate's log tail into the live job log via collapsible
+        # ::group:: blocks. The gate step's own stdout already streams the
+        # full session live (stdbuf -oL on the remote side), so this is
+        # belt-and-suspenders — it captures whatever pre_commit_check.py
+        # wrote to the .log file but didn't echo to stdout, and gives a
+        # single canonical place to find each gate's failure reason in the
+        # job log. No artifact upload — everything we need is in the live log.
+        if: always()
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          logs=(build/precommit/*.log)
+          if [ ${#logs[@]} -eq 0 ]; then
+            echo "no gate logs to print"
+            exit 0
+          fi
+          for log in "${logs[@]}"; do
+            echo "::group::tail of $(basename "$log")"
+            tail -500 "$log" || true
+            echo "::endgroup::"
+          done
+
+      - name: upload logs
+        # Archival of per-(op, soc) .log files from the sweep. Live log
+        # streaming (the `print log tails` step above) is the primary
+        # debug channel; this step persists the full logs beyond the GH
+        # workflow log retention window. `timeout-minutes: 5` caps any
+        # stall through the corp proxy to Azure blob;
+        # `continue-on-error: true` keeps the job green if the upload
+        # fails — we still have the inline tails.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+        uses: actions/upload-artifact@v6
+        with:
+          name: batch-logs-${{ github.run_attempt }}
+          path: build/precommit/
+          if-no-files-found: ignore
+          retention-days: 14

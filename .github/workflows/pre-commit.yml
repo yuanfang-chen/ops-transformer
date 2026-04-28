@@ -1,0 +1,382 @@
+name: pre-commit
+
+# Iteration loop on a self-hosted gateway. Topology: one gateway machine,
+# multiple GH Actions runner agents registered on it, each agent labeled
+# differently (e.g. `a2`, `a5`) so the workflow can pick which one. Each
+# label corresponds to a function in the gateway's `~/test_runner.bash`
+# named `<label>runner` by convention (e.g. `a2runner`); each function
+# reaches its own real-runner docker container. Workflows pick the agent
+# from the `runner` input if set, otherwise from the SoC → runner mapping
+# table below.
+#
+#   SoC → runner-label mapping (single source of truth — when adding a new
+#   NPU server class, update this table AND every ternary expression in
+#   `concurrency.group`, `runs-on`, and `env.RUNNER_FN` below):
+#
+#     ascend910b → a2
+#     ascend950  → a5
+#     <future>   → <new label>
+#
+# Adding capacity (more instances of the same NPU class) needs no workflow
+# change: register N runners with the same label and GH auto-distributes.
+#
+# Manual dispatch only — push / PR triggers were removed intentionally
+# since runner capacity is finite.
+
+on:
+  workflow_dispatch:
+    inputs:
+      op:
+        description: Operator name (see <family>/<op> or experimental/<class>/<op>)
+        required: false
+        default: fused_infer_attention_score
+        type: string
+      soc:
+        description: SoC target
+        required: false
+        default: ascend910b
+        type: choice
+        options:
+          - ascend910b
+          - ascend950
+      gates:
+        description: "Gates to run (subset of: compile,ut,pytest,st). Empty = all."
+        required: false
+        default: compile,ut
+        type: string
+      strict:
+        description: Treat SKIPs as failures
+        required: false
+        default: false
+        type: boolean
+      jobs:
+        description: |
+          Parallel jobs (-jN) for the build. Per-op caps in
+          scripts/pre_commit_check.py may clamp this lower for
+          known-racy ops (e.g. fused_infer_attention_score is
+          capped at 64; see issue #4).
+        required: false
+        default: '64'
+        type: string
+      runner:
+        description: |
+          Override runner label (any value a gateway has been registered
+          with). Empty → derive from soc per the mapping at the top of
+          this file. Use this to target a runner before its soc is added
+          to the choice list above.
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  # Per-runner singleton so a2 work doesn't queue behind a5 work and vice versa.
+  # Each runner backs an independent container with its own git tree, so cross-
+  # runner work is isolated. Within a runner: one run at a time so we don't
+  # race the shared git tree on a `git reset --hard`.
+  #
+  # The runner-resolution expression (`inputs.runner != '' && … || soc-map`)
+  # is repeated in `runs-on` and `env.RUNNER_FN` below — keep them in sync.
+  group: runner-singleton-${{ inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # `bash -l` so /etc/profile sources the CANN set_env.sh that the devcontainer
+    # Dockerfile appends. Every step gets ASCEND_HOME_PATH, LD_LIBRARY_PATH, etc.
+    shell: bash -el {0}
+
+jobs:
+  pre-commit:
+    # Pick runner: explicit `inputs.runner` if set, else SoC-derived per
+    # the mapping at the top of this file.
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
+    timeout-minutes: 240
+    env:
+      OP: ${{ inputs.op || 'fused_infer_attention_score' }}
+      SOC: ${{ inputs.soc || 'ascend910b' }}
+      GATES: ${{ inputs.gates || 'compile,ut' }}
+      STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
+      JOBS: ${{ inputs.jobs || '64' }}
+      FORCE_COLOR: '1'
+      # Reach-function name: ${runner-label}runner by convention. Each
+      # gateway's ~/test_runner.bash defines one function per container
+      # it can reach, named `<runner-label>runner`.
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2') }}
+      # Point Node-based actions (checkout, upload-artifact, etc.) at the
+      # system CA bundle so they trust the corporate TLS-intercepting proxy.
+      # Does NOT affect the runner agent's own step-log uploads — those go
+      # through .NET and use the OS trust store directly.
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+    steps:
+      # No actions/checkout — all work runs on the container via the runner
+      # reach function (a2runner or a5runner depending on inputs.soc; both
+      # defined in the gateway's ~/test_runner.bash). Scripts live at
+      # /workspace/Src/ops-transformer inside the container. Nothing here
+      # references $GITHUB_WORKSPACE. Skipping checkout dodges the gateway's
+      # flaky gnutls TLS handshake against github.com.
+
+      - name: normalize gates
+        # Empty GATES means "all"; expand to the full set so the per-gate
+        # `if: contains(...)` checks below are exact-token matches.
+        run: |
+          g="${GATES}"
+          [ -z "$g" ] && g=compile,ut,pytest,st
+          echo "GATES_NORM=$g" >> "$GITHUB_ENV"
+
+      - name: prepare container TLS trust
+        # The container's Huawei CAs are dropped as hash symlinks in
+        # /etc/ssl/certs/ (so OpenSSL-linked tools trust them) but are NOT
+        # in /etc/ssl/certs/ca-certificates.crt — the bundle that GnuTLS
+        # (git's TLS backend) actually reads. Rebuild the bundle the first
+        # time we see a container without Huawei in it, and pin git at the
+        # bundle so the dependency is visible. Also tune git's buffer +
+        # low-speed timeouts so stalled connections fail fast and retry
+        # sooner. Idempotent: the grep check short-circuits the bundle
+        # install on subsequent runs; the git config calls are always
+        # re-applied (cheap).
+        run: |
+          source ~/test_runner.bash
+          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+            echo "container TLS trust already includes Huawei CA — skipping bundle install"
+          else
+            echo "installing Huawei CA into container bundle"
+            "${RUNNER_FN}" update-ca-certificates --fresh
+            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+          fi
+          "${RUNNER_FN}" git config --system http.postBuffer 524288000
+          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
+          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
+          echo "done"
+
+      - name: sync real runner to test SHA
+        # The container's workspace (/workspace/Src/ops-transformer) is an
+        # independent git clone, not a bind-mount of the gateway's checkout.
+        # Fetch the exact commit under CI from origin (GitHub) and hard-reset
+        # to it so gates run against the PR's code, not whatever stale state
+        # the container happens to be in. Untracked files (build/, ccache)
+        # are preserved so incremental builds stay warm.
+        #
+        # Retry the fetch because the corporate TLS-intercepting proxy still
+        # flakes ~30% of handshakes even with the CA installed (cluster-level
+        # backend issues, outside our control). 5 attempts with exponential
+        # + jitter backoff spreads retries across different proxy instances.
+        # Probability of 5 consecutive failures at 30% each ≈ 0.24%.
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3 4 5; do
+            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
+              exit 1
+            fi
+            # Exponential base (5, 10, 20, 40s) + up to 100% jitter
+            base=$((5 * (2 ** (attempt - 1))))
+            jitter=$((RANDOM % base))
+            delay=$((base + jitter))
+            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+          "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
+          "${RUNNER_FN}" git log -1 --oneline
+
+      - name: show environment
+        # The gateway only orchestrates; the real build/test box is a
+        # docker container reached via $RUNNER_FN (a2runner / a5runner).
+        # Both are defined in the gateway's ~/test_runner.bash.
+        run: |
+          source ~/test_runner.bash
+          echo "op=${OP}  soc=${SOC}  gates=${GATES_NORM}  strict=${STRICT_FLAG:-(off)}"
+          echo "--- gateway ---"
+          uname -a
+          echo "--- real runner ---"
+          "${RUNNER_FN}" bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
+
+      # One step per gate so each gate's log is readable via the GH API the
+      # moment that gate finishes — the old single-step design kept every
+      # gate's output hidden until the whole script exited.
+      #
+      # Each gate runs under `stdbuf -oL -eL` (on the real runner, inside
+      # the $RUNNER_FN call) so the LD_PRELOAD it installs propagates to every
+      # descendant (bash → cmake → make → compilers), forcing line-buffered
+      # stdio instead of libc's default 4 KB block buffering on pipes. Without
+      # this, output arrives in bursts and the GH live log appears stalled
+      # mid-compile.
+      - name: compile
+        if: contains(format(',{0},', env.GATES_NORM), ',compile,')
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
+
+      - name: prepare python env for ut
+        # op_kernel UT build runs scripts/util/gen_tiling_head_file.py, which
+        # imports tbe → tvm → numpy. The container's Python is minimal, so
+        # install the root requirements.txt (pyyaml, numpy, decorator, sympy,
+        # scipy, attrs, protobuf, psutil) before the UT gate runs. Idempotent
+        # — pip is a no-op when everything is already satisfied. Retry on
+        # flakes, same pattern as the git fetch step.
+        if: contains(format(',{0},', env.GATES_NORM), ',ut,')
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3; do
+            if "${RUNNER_FN}" pip3 install -r requirements.txt; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "pip3 install failed after 3 attempts"
+              exit 1
+            fi
+            delay=$((10 * attempt))
+            echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+
+      - name: ut
+        if: contains(format(',{0},', env.GATES_NORM), ',ut,')
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
+
+      - name: prepare python env for pytest
+        # The pytest gate's prereq probe checks `import torch; import torch_npu`
+        # in the runner's python3. Install both via the NJU pip mirror
+        # (PyPI is corp-blocked; mirror is fast + inside the firewall).
+        # `--trusted-host` skips cert verification on bare-host runners
+        # whose system CA bundle doesn't carry the corp MITM CA.
+        # Retry pattern mirrors the other env-prep steps.
+        #
+        # CANN install layout differs across runners (a2 container ships
+        # everything under cann-X/lib64/; a5 host ships under
+        # cann-X/<arch>-linux/lib64/). Anchor on libhccl.so to discover the
+        # actual lib64 dir and persist `CANN` + `CANN_LD` to $GITHUB_ENV
+        # so subsequent steps reuse them without re-discovering.
+        if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3; do
+            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple --trusted-host mirror.nju.edu.cn torch torch_npu pytest; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "pip3 install torch/torch_npu/pytest failed after 3 attempts"
+              exit 1
+            fi
+            delay=$((10 * attempt))
+            echo "pip3 install failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+          # ASCEND_HOME_PATH is exported by the gateway's reach
+          # function (test_runner.bash) on every runner class, so just
+          # trust it. The earlier `find /usr/local/Ascend -name opp`
+          # dance broke when a5's CANN moved to /home/triton_ascend/...
+          # and was always brittle anyway (relied on the install
+          # landing under one specific prefix).
+          CANN=$("${RUNNER_FN}" bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
+          if [ -z "$CANN" ]; then
+            echo "ASCEND_HOME_PATH unset on runner — gateway test_runner.bash not exporting env?"
+            exit 1
+          fi
+          # Both arch-specific devlib subdirs are listed; non-existent
+          # entries on LD_LIBRARY_PATH are harmless to the loader.
+          CANN_LD="${CANN}/lib64:${CANN}/lib64/plugin/opskernel:${CANN}/lib64/plugin/nnengine:${CANN}/runtime/lib64:${CANN}/devlib:${CANN}/devlib/aarch64:${CANN}/devlib/x86_64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver"
+          echo "discovered CANN=${CANN}"
+          echo "CANN=${CANN}" >> "$GITHUB_ENV"
+          echo "CANN_LD=${CANN_LD}" >> "$GITHUB_ENV"
+          # Verify both modules import — needs CANN runtime libs on
+          # LD_LIBRARY_PATH so torch_npu's libmetadef.so dlopen resolves
+          # `ge::AscendString` symbols at process start.
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" python3 -c 'import torch, torch_npu'
+
+      - name: install run pkg before pytest
+        # Pytest goes through the aclnn API at runtime, which loads
+        # libops_transformer_aclnn.so from the installed run package's
+        # opp/vendors/custom_transformer/op_api/lib. The .run was produced
+        # by the compile gate; install it here so the freshly-built op
+        # registers under ${ASCEND_HOME_PATH}/opp/vendors/custom_transformer.
+        # `--quiet` accepts the EULA and runs the embedded install script
+        # (the makeself wrapper has no plain `--install` flag — passing it
+        # makes the package print --help and exit non-zero).
+        #
+        # Find the .run path with a tiny single-quoted script (no inner
+        # quotes — survives the test_runner ssh-side `"..."` parse, where
+        # embedded `"` would terminate the outer quoting and expand
+        # `$pkg`/`$(...)` on the gateway side). `$CANN`/`$CANN_LD` come
+        # from the prep step above via $GITHUB_ENV.
+        if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
+        run: |
+          source ~/test_runner.bash
+          pkg=$("${RUNNER_FN}" bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
+          if [ -z "$pkg" ]; then
+            echo "no .run pkg under build_out/ — was the compile gate run?"
+            exit 1
+          fi
+          echo "installing $pkg"
+          "${RUNNER_FN}" chmod +x "$pkg"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" "$pkg" --quiet
+
+      - name: pytest
+        # `$CANN`/`$CANN_LD` come from the prep step. Prepend the just-
+        # installed op-api lib dir so aclnn finds libops_transformer_aclnn.so.
+        # Workflow env vars (JOBS, FORCE_COLOR, SOC, OP, STRICT_FLAG) cross
+        # the test_runner boundary via env=val pairs.
+        if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
+        run: |
+          source ~/test_runner.bash
+          PYTEST_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib:${CANN_LD}"
+          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${PYTEST_LD}" \
+            JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
+            stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
+
+      - name: st
+        if: contains(format(',{0},', env.GATES_NORM), ',st,')
+        run: |
+          source ~/test_runner.bash
+          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
+
+      - name: fetch logs from real runner
+        # Gates write logs under build/precommit on the container; pull them
+        # back via $RUNNER_FN. The command form (with args) doesn't allocate
+        # a PTY, so binary tar output passes through cleanly.
+        if: always()
+        continue-on-error: true
+        run: |
+          source ~/test_runner.bash
+          mkdir -p build/precommit
+          "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null \
+            | tar -C build/precommit -xf - || true
+          ls -la build/precommit/ || true
+
+      - name: print log tails
+        # Embed each gate's log tail into the live job log via collapsible
+        # ::group:: blocks. The gate step's own stdout already streams the
+        # full session live (stdbuf -oL on the remote side), so this is
+        # belt-and-suspenders — it captures whatever pre_commit_check.py
+        # wrote to the .log file but didn't echo to stdout, and gives a
+        # single canonical place to find the failure reason in the job log.
+        if: always()
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          logs=(build/precommit/*.log)
+          if [ ${#logs[@]} -eq 0 ]; then
+            echo "no gate logs to print"
+            exit 0
+          fi
+          for log in "${logs[@]}"; do
+            echo "::group::tail of $(basename "$log")"
+            tail -500 "$log" || true
+            echo "::endgroup::"
+          done
+
+      # `actions/upload-artifact@v4` step temporarily removed: the .NET
+      # runner agent's TLS to api.github.com (where it pulls the action
+      # tarball) is flaking hard against the corp proxy and dropping it
+      # blocks the whole job at "Set up job". The inline `print log tails`
+      # step above gives us enough debug signal for now. Restore the
+      # upload step when the runner-cache for actions/upload-artifact@v4
+      # is populated again.

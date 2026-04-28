@@ -1,0 +1,107 @@
+name: gateway-probe
+
+# One-off diagnostic. Runs ON THE GATEWAY directly (no a2runner/a5runner), so it
+# exercises the gateway's own TLS trust — git (GnuTLS), curl (OpenSSL),
+# plus the runner agent's .env. Use after installing the Huawei CA on the
+# gateway to confirm `actions/checkout` and `actions/upload-artifact` will
+# work before reintroducing them to the real workflows.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label to probe. Default a2.
+        required: false
+        default: a2
+        type: string
+
+concurrency:
+  group: runner-singleton-${{ inputs.runner }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  probe:
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.runner }}"]
+    timeout-minutes: 10
+    steps:
+      - name: probe gateway TLS trust
+        run: |
+          set -u
+          echo "=== host ==="
+          hostname; uname -a; id
+
+          echo
+          echo "=== git binary + TLS backend ==="
+          command -v git && git --version
+          ldd "$(command -v git)" 2>/dev/null | grep -Ei 'ssl|gnutls|nss' \
+            || echo "(no dynamic TLS deps — git may be statically linked)"
+
+          echo
+          echo "=== Huawei CA in system bundle? ==="
+          if openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null \
+               | openssl pkcs7 -print_certs -noout 2>/dev/null \
+               | grep -i 'Huawei Web Secure'; then
+            echo "OK"
+          else
+            echo "NOT FOUND — run update-ca-certificates --fresh"
+          fi
+
+          echo
+          echo "=== git sslCAInfo ==="
+          git config --system --get http.sslCAInfo 2>/dev/null || echo "system: (unset)"
+          git config --global --get http.sslCAInfo 2>/dev/null || echo "global: (unset)"
+
+          echo
+          echo "=== ~/test_runner.bash contents (proxy password masked) ==="
+          if [ -f ~/test_runner.bash ]; then
+            sed -E 's#://[^@[:space:]]*:[^@[:space:]]*@#://***:***@#g' ~/test_runner.bash
+          else
+            echo "(no ~/test_runner.bash on this gateway)"
+          fi
+
+          echo
+          echo "=== runner agent .env contents (masked) ==="
+          shopt -s nullglob
+          for f in ~/actions-runner/.env /home/*/actions-runner/.env \
+                   /opt/actions-runner/.env /etc/actions-runner/.env; do
+            [ -f "$f" ] || continue
+            echo "--- $f ---"
+            grep -v '^\s*#' "$f" | sed -E 's#://[^@]*@#://***:***@#g'
+          done
+          shopt -u nullglob
+
+          echo
+          echo "=== current process env (TLS/SSL/PROXY only, masked) ==="
+          env | grep -iE 'SSL|CERT|PROXY|CA_' \
+            | sed -E 's#://[^@]*@#://***:***@#g' \
+            | sort
+
+          echo
+          echo "=== HTTP reach via curl (OpenSSL) ==="
+          for url in \
+              https://github.com/ \
+              https://api.github.com/ \
+              https://github.blob.core.windows.net/ \
+              https://objects.githubusercontent.com/ ; do
+            code=$(curl -sS --max-time 15 -o /dev/null -w "%{http_code}" "$url" 2>&1) \
+              || code="curl-fail($?)"
+            printf "%-55s -> %s\n" "$url" "$code"
+          done
+
+          echo
+          echo "=== git handshake — 10 consecutive ls-remote ==="
+          ok=0; fail=0
+          for i in $(seq 1 10); do
+            if timeout 20 git ls-remote --exit-code \
+                 https://github.com/yuanfang-chen/ops-transformer.git HEAD \
+                 >/dev/null 2>&1; then
+              ok=$((ok+1))
+            else
+              fail=$((fail+1))
+            fi
+          done
+          echo "result: $ok OK, $fail FAIL (want: 10 OK)"

@@ -1,0 +1,113 @@
+name: remote-exec
+
+# Ad-hoc command runner against the cann_container reachable from a chosen
+# gateway. Dispatched manually with a `script` input (multi-line bash). The
+# script runs inside the container via the runner's reach function; stdout,
+# stderr, and exit code are captured to files and uploaded as an artifact,
+# so callers can parse results without scraping the step log.
+#
+# Intended for one-off debugging or maintenance (clean a stale dir, inspect
+# a path, run a tool the real workflows don't yet wrap). NOT a substitute
+# for pre-commit.yml / batch.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: Bash script to run inside the container. Multi-line OK.
+        required: true
+        type: string
+      runner:
+        description: Runner label to dispatch to. Default a2.
+        required: false
+        default: a2
+        type: string
+
+concurrency:
+  # Per-runner-agent singleton: serialize against other workflows targeting
+  # the same agent (and therefore the same real-runner container), but
+  # don't block agents with other labels on the same gateway.
+  group: runner-singleton-${{ inputs.runner }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  remote-exec:
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.runner }}"]
+    # Default 30 min covers ad-hoc probes; bumped to 240 on this branch
+    # to absorb a full ascend950 FIAS .run package rebuild (≥90 min
+    # cold-cache, less when ccache is hot) when this workflow is
+    # dispatched with --ref to drive the perf bench. Revert to 30 once
+    # fias-perf-bench.yml lands on the default branch and is used
+    # directly.
+    timeout-minutes: 240
+    env:
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+      SCRIPT: ${{ inputs.script }}
+      # Reach-function name follows the convention: <runner-label>runner
+      RUNNER_FN: ${{ format('{0}runner', inputs.runner) }}
+    steps:
+      - name: run script via $RUNNER_FN
+        run: |
+          source ~/test_runner.bash
+          mkdir -p build/remote-exec
+
+          # Echo the script for log readability before encoding.
+          echo "::group::script"
+          printf '%s\n' "${SCRIPT}"
+          echo "::endgroup::"
+
+          # Encode the script as base64 and decode inside the container's
+          # bash. The runner function's printf-%q escaping eats one layer
+          # of $ and ", so a complex `bash -c` arg gets corrupted. The
+          # encoded form is plain ASCII and survives every quoting layer
+          # untouched.
+          encoded=$(printf '%s' "${SCRIPT}" | base64 -w0)
+          rc=0
+
+          # Live stream into the step log inside a collapsible group, and
+          # also tee to files for the artifact. `wait` ensures the tee
+          # process substitutions flush before we close the group and
+          # write the exit file — without it, trailing output can land
+          # after ::endgroup:: or be truncated when the step exits.
+          echo "::group::output (live)"
+          "${RUNNER_FN}" bash -c "echo ${encoded} | base64 -d | bash" \
+            > >(tee build/remote-exec/stdout) \
+            2> >(tee build/remote-exec/stderr >&2) \
+            || rc=$?
+          # `|| true` shields against `set -e` if a tee procsub returns
+          # non-zero (rare; e.g. disk pressure) — we still need to write
+          # the exit file and close the group.
+          wait || true
+          echo "::endgroup::"
+
+          # Replay stderr in its own group so a chatty stdout doesn't
+          # bury the error trail when triaging from the step log alone.
+          if [[ -s build/remote-exec/stderr ]]; then
+            echo "::group::stderr (replay)"
+            cat build/remote-exec/stderr
+            echo "::endgroup::"
+          fi
+
+          printf '%s' "${rc}" > build/remote-exec/exit
+          if [[ "${rc}" -eq 0 ]]; then
+            echo "::notice title=remote-exec exit::${rc}"
+          else
+            echo "::error title=remote-exec exit::${rc}"
+          fi
+          # Don't fail the step on non-zero exit — caller inspects the
+          # exit file in the artifact. Keeping the step green guarantees
+          # the artifact upload runs and the result is retrievable.
+
+      - name: upload artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: remote-exec-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/remote-exec/
+          if-no-files-found: ignore
+          retention-days: 7
