@@ -408,6 +408,9 @@ class BinParamBuilder(opdesc_parser.OpDesc):
         remove_pid
         {const_var.CHK_CMD.format(res_file=bin_file + '.json')}
         {const_var.CHK_CMD.format(res_file=bin_file + '.o')}
+    elif [ $__ret -eq 1 ] && echo "${{res}}" | grep -q "no match kernel template input"; then
+        echo "${{res}}"
+        remove_pid
     else
         echo "${{res}}"
         on_failure
@@ -424,7 +427,7 @@ class BinParamBuilder(opdesc_parser.OpDesc):
         remove_pid
         {const_var.CHK_CMD.format(res_file=bin_file + '.json')}
         {const_var.CHK_CMD.format(res_file=bin_file + '.o')}
-    elif [ $__ret -eq 1 ] && echo "${{res}}" | grep -q "None of the given tiling keys are in the supported list"; then
+    elif [ $__ret -eq 1 ] && echo "${{res}}" | grep -qE "None of the given tiling keys are in the supported list|no match kernel template input"; then
         echo "${{res}}"
     else
         echo "${{res}}"

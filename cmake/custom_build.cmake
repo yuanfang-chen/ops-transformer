@@ -854,10 +854,41 @@ endif ()
 # ---------------------------------------- generate es transformer cust ------------------------------------------
 if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENABLE_STATIC)
     message(STATUS "Start Generating es transformer for custom pkg")
+    # Ninja dependency cycle fix: cust_proto and proto_transformer_cust both need the
+    # generated proto sources. In Ninja, a generated file is a single graph node whose
+    # order-only deps are the UNION of all targets that reference it. If cust_proto
+    # depends on build_es_transformer_cust (which depends on proto_transformer_cust,
+    # which compiles the same generated file), a cycle forms through that shared node.
+    #
+    # Fix: create symlinked copies of the generated proto sources in a separate
+    # directory for proto_transformer_cust. This gives each target its own file nodes
+    # in the build graph, breaking the cycle.
+    set(_es_proto_copy_dir "${CMAKE_BINARY_DIR}/es_proto_srcs")
+    file(MAKE_DIRECTORY "${_es_proto_copy_dir}")
+    set(_es_proto_copied_srcs "")
+    set(_es_proto_inc_dirs "")
+    foreach(_src ${generate_proto_srcs})
+        get_filename_component(_fname "${_src}" NAME)
+        get_filename_component(_srcdir "${_src}" DIRECTORY)
+        set(_dst "${_es_proto_copy_dir}/${_fname}")
+        add_custom_command(
+            OUTPUT "${_dst}"
+            COMMAND ${CMAKE_COMMAND} -E copy "${_src}" "${_dst}"
+            DEPENDS "${_src}"
+            COMMENT "Copying ${_fname} for ES proto build"
+        )
+        list(APPEND _es_proto_copied_srcs "${_dst}")
+        list(APPEND _es_proto_inc_dirs "${_srcdir}")
+    endforeach()
+    list(REMOVE_DUPLICATES _es_proto_inc_dirs)
+
     add_library(
         proto_transformer_cust SHARED
-        ${generate_proto_srcs}
+        ${_es_proto_copied_srcs}
     )
+    # Add original source directories as include paths so copied .cpp files can
+    # find their sibling .h headers via #include "foo.h" relative includes.
+    target_include_directories(proto_transformer_cust PRIVATE ${_es_proto_inc_dirs})
     add_dependencies(proto_transformer_cust ops_transformer_proto_headers)
     target_link_libraries(
         proto_transformer_cust PRIVATE
@@ -886,6 +917,26 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
         OPTIONAL
     )
 
+    # Ninja-compat: give es_packages/lib64/libes_transformer_cust.so a real
+    # producing rule. CANN's generate_es_package.cmake copies the .so into
+    # es_packages/lib64/ inside a custom_command whose only declared OUTPUT is
+    # install.flag, so ninja doesn't know that path is produced and errors
+    # with "missing and no known rule to make it" when cust_proto links
+    # against the IMPORTED es_transformer_cust (whose IMPORTED_LOCATION is
+    # exactly that path). Stage the so ourselves with a proper OUTPUT.
+    set(_es_staged_lib "${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer_cust.so")
+    add_custom_command(
+        OUTPUT "${_es_staged_lib}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/es_packages/lib64"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:es_transformer_cust_so>
+                "${_es_staged_lib}"
+        DEPENDS es_transformer_cust_so
+        COMMENT "Staging libes_transformer_cust.so for ninja dependency resolution"
+        VERBATIM
+    )
+    add_custom_target(stage_es_transformer_cust_lib DEPENDS "${_es_staged_lib}")
+
     # building es referring cust proto target. When autogen es from AscendC is supported, these can be removed
     # when fusion pass files adapted, reference can be changed to graph plugin obj
     if(TARGET ${GRAPH_PLUGIN_NAME}_obj)
@@ -897,6 +948,7 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
             message(STATUS "custom Graph Plugin Source to add es to obj")
             add_dependencies(${GRAPH_PLUGIN_NAME}_obj
                 build_es_transformer_cust
+                stage_es_transformer_cust_lib
             )
             target_link_libraries(${GRAPH_PLUGIN_NAME}_obj
                 PRIVATE es_transformer_cust
@@ -907,6 +959,7 @@ if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN AND NOT ENA
         message(STATUS "custom cust proto to es")
         add_dependencies(cust_proto
             build_es_transformer_cust
+            stage_es_transformer_cust_lib
         )
         target_link_libraries(cust_proto
             PRIVATE es_transformer_cust
@@ -1088,7 +1141,7 @@ if (NOT ENABLE_BUILT_IN AND BUILD_OPEN_PROJECT)
     set(CPACK_PACKAGE_DIRECTORY ${CMAKE_BINARY_DIR})
     set(CPACK_PACKAGE_FILE_NAME "cann-ops-transformer-${VENDOR_NAME}_linux-${ARCH}.run")
     set(CPACK_GENERATOR External)
-    set(CPACK_CMAKE_GENERATOR "Unix Makefiles")
+    set(CPACK_CMAKE_GENERATOR "${CMAKE_GENERATOR}")
     set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
     if (ENABLE_BUILD_PKG)
       if (EXISTS ${ASCEND_CMAKE_DIR}/makeself.cmake)

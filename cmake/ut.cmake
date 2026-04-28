@@ -404,8 +404,13 @@ if(UT_TEST_ALL OR OP_KERNEL_UT)
       target_compile_definitions(${opName}_${socVersion}_tiling_tmp PRIVATE LOG_CPP _GLIBCXX_USE_CXX11_ABI=0)
       target_link_libraries(
         ${opName}_${socVersion}_tiling_tmp
+        # `register` provides gert::OpImplRegisterV2 (ctor/copy-ctor/dtor,
+        # Tiling(), TilingParse()) — the symbols expanded by IMPL_OP_OPTILING
+        # statics in the op's tiling.cpp. Without it the .so's dlopen (done
+        # by gen_tiling_head_file.py during op_kernel UT build) fails with
+        # `undefined symbol: _ZN4gert16OpImplRegisterV2D1Ev`.
         PRIVATE -Wl,--no-as-needed -Wl,--as-needed -Wl,--whole-archive tiling_api
-                -Wl,--no-whole-archive gcov
+                -Wl,--no-whole-archive gcov register
                 $<$<BOOL:${dlog_FOUND}>:$<BUILD_INTERFACE:dlog_headers>>
         )
 
