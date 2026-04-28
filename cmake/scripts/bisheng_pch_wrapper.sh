@@ -107,7 +107,12 @@ if [ ! -f "$PCH_FILE" ]; then
                 esac
                 pch_argv+=("$arg")
             done
-            pch_argv+=(-x c++-header "$PRELUDE" -o "$PCH_FILE")
+            # `-x c++-header` mode renders many --cce-* flags inert; the build
+            # uses -Werror which otherwise turns the unused-arg warning into a
+            # fatal error. Suppress in the PCH build only.
+            pch_argv+=(-Wno-error=unused-command-line-argument
+                       -Wno-unused-command-line-argument
+                       -x c++-header "$PRELUDE" -o "$PCH_FILE")
             dbg "pch cmd: ${pch_argv[*]}"
             if "$REAL" "${pch_argv[@]}" >"$PCH_BUILD_LOG" 2>&1; then
                 dbg "PCH built: $(stat -c%s "$PCH_FILE" 2>/dev/null) bytes"
