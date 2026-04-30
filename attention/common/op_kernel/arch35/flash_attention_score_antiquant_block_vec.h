@@ -650,7 +650,8 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::ProcessVec1
                 this->attenMaskGmInt, runInfo, constInfo, attenMaskInfo);
             attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
         } else {
-            attenMaskUb = dummyAttenMaskTensor;
+            attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template AllocTensor<uint8_t>();
+            Duplicate(attenMaskUb, static_cast<uint8_t>(0), attenMaskSize);
         }
     } else {
         attenMaskUb = dummyAttenMaskTensor;

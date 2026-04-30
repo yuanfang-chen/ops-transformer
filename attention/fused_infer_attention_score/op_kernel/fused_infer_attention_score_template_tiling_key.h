@@ -3264,9 +3264,9 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(InOutLayoutType, ASCENDC_TPL_UI_LIST, InOutLayoutType_BNSD_BNSD, InOutLayoutType_BSH_BSH, InOutLayoutType_TND_TND, InOutLayoutType_NTD_NTD),
         ASCENDC_TPL_UINT_SEL(Config, ASCENDC_TPL_UI_LIST, Config_S1Aligned64_S2Aligned64_DAligned256_DVAligned256, Config_S1Aligned128_S2Aligned128_DAligned64_DVAligned64,
                                     Config_S1Aligned128_S2Aligned128_DAligned128_DVAligned128, Config_S1Aligned128_S2Aligned128_DAligned256_DVAligned128),
-        ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE, PSE_MODE_PSE_OUTER_MUL_ADD_TYPE),  //注意 这里的逻辑有区别，false true对应disable和enable 
+        ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE, PSE_MODE_PSE_OUTER_MUL_ADD_TYPE),  //注意 这里的逻辑有区别，false true对应disable和enable
         ASCENDC_TPL_UINT_SEL(QuantMode, ASCENDC_TPL_UI_LIST, FullQuantMode), //未使用
-        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 0), //未使用
+        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 1), //未使用
         ASCENDC_TPL_BOOL_SEL(HasRope, 0), //未使用
         ASCENDC_TPL_BOOL_SEL(IsPa, 0),  //未使用
         ASCENDC_TPL_BOOL_SEL(IsFd, 0), //未使用
@@ -3282,7 +3282,7 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(Config, ASCENDC_TPL_UI_LIST, Config_S1Aligned64_S2Aligned64_DAligned512_DVAligned512),
         ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE, PSE_MODE_PSE_OUTER_MUL_ADD_TYPE),
         ASCENDC_TPL_UINT_SEL(QuantMode, ASCENDC_TPL_UI_LIST, FullQuantMode), //未使用
-        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 0), //未使用
+        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 1), //未使用
         ASCENDC_TPL_BOOL_SEL(HasRope, 0), //未使用
         ASCENDC_TPL_BOOL_SEL(IsPa, 0),  //未使用
         ASCENDC_TPL_BOOL_SEL(IsFd, 0), //未使用
@@ -3302,7 +3302,7 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(Config, ASCENDC_TPL_UI_LIST, Config_S1Aligned128_S2Aligned256_DAligned64_DVAligned64, Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128),
         ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE),
         ASCENDC_TPL_UINT_SEL(QuantMode, ASCENDC_TPL_UI_LIST, PerBlock), //未使用
-        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 0), //未使用
+        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 1), //未使用
         ASCENDC_TPL_BOOL_SEL(HasRope, 0), //未使用
         ASCENDC_TPL_BOOL_SEL(IsPa, 0),  //未使用
         ASCENDC_TPL_BOOL_SEL(IsFd, 0), //未使用
@@ -3322,7 +3322,7 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(Config, ASCENDC_TPL_UI_LIST, Config_S1Aligned128_S2Aligned256_DAligned64_DVAligned64, Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128),
         ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE),
         ASCENDC_TPL_UINT_SEL(QuantMode, ASCENDC_TPL_UI_LIST, PerBlock), //未使用
-        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 0), //未使用
+        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 1), //未使用
         ASCENDC_TPL_BOOL_SEL(HasRope, 0), //未使用
         ASCENDC_TPL_BOOL_SEL(IsPa, 0),  //未使用
         ASCENDC_TPL_BOOL_SEL(IsFd, 0), //未使用
@@ -3359,7 +3359,7 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(Config, ASCENDC_TPL_UI_LIST, Config_S1Aligned128_S2Aligned256_DAligned64_DVAligned64, Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128),
         ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE),
         ASCENDC_TPL_UINT_SEL(QuantMode, ASCENDC_TPL_UI_LIST, PerBlock), //未使用
-        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 0), //未使用
+        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 1), //未使用
         ASCENDC_TPL_BOOL_SEL(HasRope, 0), //未使用
         ASCENDC_TPL_BOOL_SEL(IsPa, 0),  //未使用
         ASCENDC_TPL_BOOL_SEL(IsFd, 0), //未使用
@@ -3378,7 +3378,7 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_UINT_SEL(Config, ASCENDC_TPL_UI_LIST, Config_S1Aligned128_S2Aligned256_DAligned64_DVAligned64, Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128),
         ASCENDC_TPL_UINT_SEL(PseMode, ASCENDC_TPL_UI_LIST, PSE_MODE_PSE_NONE_TYPE),
         ASCENDC_TPL_UINT_SEL(QuantMode, ASCENDC_TPL_UI_LIST, PerBlock), //未使用
-        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 0), //未使用
+        ASCENDC_TPL_BOOL_SEL(HasAttenMask, 1), //未使用
         ASCENDC_TPL_BOOL_SEL(HasRope, 0), //未使用
         ASCENDC_TPL_BOOL_SEL(IsPa, 0),  //未使用
         ASCENDC_TPL_BOOL_SEL(IsFd, 0), //未使用
