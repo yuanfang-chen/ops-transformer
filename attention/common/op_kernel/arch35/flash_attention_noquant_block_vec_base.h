@@ -385,6 +385,9 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
                                         ((runInfo.s2EndIdx - s1BaseSize >= s2BaseSize) &&
                                          (runInfo.s2LoopCount == runInfo.s2LoopLimit)));
             attenMaskUb = this->attenMaskInQue[0].template DeQue<uint8_t>();
+        } else {
+            attenMaskUb = this->attenMaskInQue[0].template AllocTensor<uint8_t>();
+            Duplicate(attenMaskUb, static_cast<uint8_t>(0), (s1BaseSize >> 1U) * s2BaseSize);
         }
     }
     LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>()[0];
@@ -427,7 +430,8 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
                 stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
                 ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.scaleValue), descaleQK,
-                negativeFloatScalar, constInfo.keepProb, runInfo.s2EndIdx - s1BaseSize < s2BaseSize);
+                negativeFloatScalar, constInfo.keepProb,
+                constInfo.hasAttenMaskRT && (runInfo.s2EndIdx - s1BaseSize < s2BaseSize));
         } else {
             if (constInfo.learnableSinkFlag) {
                 FaVectorApi::ProcessVec1VfDn<T, INPUT_T, false, false, s2BaseSize, true>(
@@ -449,7 +453,8 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
                 stage1CastTensor, sumUb, maxUb, mmRes, expUb, this->vselrIndexesBuf, attenMaskUb,
                 ((runInfo.s1RealSizeAlign32 >> 1) + 63) >> 6 << 6, runInfo.s2AlignedSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.scaleValue), descaleQK,
-                negativeFloatScalar, constInfo.keepProb, runInfo.s2LoopCount == runInfo.s2LoopLimit);
+                negativeFloatScalar, constInfo.keepProb,
+                constInfo.hasAttenMaskRT && (runInfo.s2LoopCount == runInfo.s2LoopLimit));
         } else {
             if (constInfo.learnableSinkFlag) {
                 FaVectorApi::ProcessVec1VfDn<T, INPUT_T, true, false, s2BaseSize, true>(
@@ -855,6 +860,9 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                     this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
                 attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
             }
+        } else {
+            attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template AllocTensor<uint8_t>();
+            Duplicate(attenMaskUb, static_cast<uint8_t>(0), (s1BaseSize >> 1U) * s2BaseSize);
         }
     }
     LocalTensor<uint8_t> dropMaskUb;
