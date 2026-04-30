@@ -4,7 +4,7 @@
   //"workspaceMount": "source=${localWorkspaceFolder},target=/workspace/ops-transformer,type=bind,consistency=cached",
   //"workspaceFolder": "/workspace/ops-transformer",
   "workspaceMount": "source=${localEnv:HOME}/code,target=${localEnv:HOME}/code,type=bind,consistency=cached",
-  "workspaceFolder": "${localEnv:HOME}/code/worktrees/${localWorkspaceFolderBasename}",
+  "workspaceFolder": "${localWorkspaceFolder}",
   "mounts": [
     "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind",
     "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind",
@@ -35,8 +35,8 @@
   },
   "features": {
     // "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "22"
+    "ghcr.io/devcontainers/features/node:2.0.0": {
+      "version": "24"
     },
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
