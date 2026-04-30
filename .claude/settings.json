@@ -5,6 +5,11 @@
     "allow": [
       "Edit", "Write",
 
+      "Read(/usr/local/Ascend/**)",
+      "Read(/usr/include/**)",
+      "Read(/usr/lib/**)",
+      "Read(./**)",
+
       "Bash(cmake:*)",
 
       "Bash(make:*)",
@@ -102,6 +107,13 @@
       "Bash(./build/*)",
       "Bash(./bin/*)",
       "Bash(build/*)"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.config/**)",
+      "Read(**/.env)",
+      "Read(**/.env.*)"
     ],
     "ask": [
       "Bash(gh pr merge:*)",

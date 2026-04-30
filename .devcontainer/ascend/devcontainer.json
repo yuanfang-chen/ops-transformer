@@ -1,5 +1,5 @@
 {
-  "name": "CANN 9.0.0-beta.2 Dev",
+  "name": "CANN 9.0.0-beta.2 Ascend NPU Dev",
   "image": "ghcr.io/yuanfang-chen/cann-container-image/cann:9.0.0-beta.2-910b-ubuntu22.04-py3.11",
   //"workspaceMount": "source=${localWorkspaceFolder},target=/workspace/ops-transformer,type=bind,consistency=cached",
   //"workspaceFolder": "/workspace/ops-transformer",
@@ -12,11 +12,22 @@
     "source=codex-config-${devcontainerId},target=/root/.codex,type=volume",
     "source=ccache-${devcontainerId},target=/root/.cache/ccache,type=volume"
   ],
-  // Codex CLI uses bubblewrap for Linux sandboxing. These unblock user namespace
-  // creation on Ubuntu 24.04 hosts with AppArmor user namespace restrictions.
   "runArgs": [
+    // Codex CLI uses bubblewrap for Linux sandboxing. These unblock user
+    // namespace creation on Ubuntu 24.04 hosts with AppArmor restrictions.
     "--security-opt=apparmor=unconfined",
-    "--security-opt=seccomp=unconfined"
+    "--security-opt=seccomp=unconfined",
+    // Ascend NPU device access. Add more --device=/dev/davinciN entries here
+    // if the host exposes multiple NPUs that this devcontainer should use.
+    "--device=/dev/davinci0",
+    "--device=/dev/davinci_manager",
+    "--device=/dev/devmm_svm",
+    "--device=/dev/hisi_hdc",
+    "--volume=/usr/local/dcmi:/usr/local/dcmi",
+    "--volume=/usr/local/bin/npu-smi:/usr/local/bin/npu-smi",
+    "--volume=/usr/local/Ascend/driver/lib64/:/usr/local/Ascend/driver/lib64/",
+    "--volume=/usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info",
+    "--volume=/etc/ascend_install.info:/etc/ascend_install.info"
   ],
   "customizations": {
     "vscode": {
@@ -47,6 +58,6 @@
     "GH_TOKEN": "${localEnv:GH_TOKEN}",
     "SSH_AUTH_SOCK": "/ssh-agent",
     "CCACHE_DIR": "/root/.cache/ccache",
-    "CCACHE_MAXSIZE": "25Gi" // <‑‑ set a max cache size for ccache, otherwise it will grow indefinitely and consume all disk space
+    "CCACHE_MAXSIZE": "25Gi"
   }
 }
