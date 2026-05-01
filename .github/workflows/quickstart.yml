@@ -87,7 +87,11 @@ jobs:
           echo "--- gateway ---"
           uname -a
           echo "--- real runner ---"
-          ghrunner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
+          ghrunner uname -a
+          echo "cores: $(ghrunner nproc | tr -d '\r\n')"
+          echo "ASCEND_HOME_PATH=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')"
+          ghrunner python3 --version
+          ghrunner ccache --version | head -1 || true
 
       # QUICKSTART step 2: build the operator package
       - name: build ${{ inputs.operator }}
@@ -113,7 +117,11 @@ jobs:
       - name: run ${{ inputs.operator }} and verify output
         run: |
           source ~/test_runner.bash
-          CANN=$(ghrunner bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
+          CANN=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')
+          if [ -z "$CANN" ]; then
+            echo "ASCEND_HOME_PATH unset on runner"
+            exit 1
+          fi
           EXAMPLE_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib"
 
           output_log=$(mktemp)
