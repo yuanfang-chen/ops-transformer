@@ -196,7 +196,7 @@ jobs:
         if: always()
         continue-on-error: true
         timeout-minutes: 5
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: quickstart-logs-${{ github.run_attempt }}
           path: build/quickstart/
