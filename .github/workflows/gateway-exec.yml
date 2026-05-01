@@ -1,0 +1,30 @@
+name: exec command on gateway runner
+
+# One-off diagnostic. Runs ON THE GATEWAY directly (no a2runner/a5runner), so it
+# exercises the gateway's own TLS trust — git (GnuTLS), curl (OpenSSL),
+# plus the runner agent's .env. Use after installing the Huawei CA on the
+# gateway to confirm `actions/checkout` and `actions/upload-artifact` will
+# work before reintroducing them to the real workflows.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: runner-singleton-${{ inputs.runner }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -eu {0}
+
+jobs:
+  remote-exec:
+    runs-on: [self-hosted, Linux, X64, a2]
+    timeout-minutes: 10
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+
+      - name: run commands on gateway runner
+        run: |
+          python3 -u .github/scripts/dummy_output.py
