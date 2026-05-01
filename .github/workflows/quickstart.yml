@@ -168,7 +168,7 @@ jobs:
           output_log=build/quickstart/run-example.log
           set +e
           ghrunner env LD_LIBRARY_PATH="${EXAMPLE_LD}:${CANN}/lib64" FORCE_COLOR="${FORCE_COLOR}" \
-            stdbuf -oL -eL bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom 2>&1 | tee "$output_log"
+            stdbuf -oL -eL bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom --soc="${SOC}" 2>&1 | tee "$output_log"
           run_status=${PIPESTATUS[0]}
           set -e
           echo "$run_status" > build/quickstart/run-example.status
