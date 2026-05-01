@@ -52,7 +52,7 @@ jobs:
       - Linux
       - X64
       - ${{ inputs.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       OPERATOR: ${{ inputs.operator }}
       SOC: ${{ inputs.soc }}
