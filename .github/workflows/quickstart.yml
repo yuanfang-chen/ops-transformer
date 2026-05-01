@@ -106,6 +106,10 @@ jobs:
             echo "sha=${GITHUB_SHA}"
           } > build/quickstart/manifest.txt
 
+          build_epoch=$(date +%s)
+          echo "$build_epoch" > build/quickstart/build-start.epoch
+          ghrunner rm -f build_out/cann-ops-transformer-*.run build/cann-ops-transformer-*.run
+
           set +e
           ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
             stdbuf -oL -eL bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}" 2>&1 \
@@ -119,9 +123,16 @@ jobs:
       - name: install run package
         run: |
           source ~/test_runner.bash
+          build_epoch=$(cat build/quickstart/build-start.epoch)
           pkg=$(ghrunner bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
           if [ -z "$pkg" ]; then
             echo "no .run pkg under build_out/ — build step failed?"
+            exit 1
+          fi
+          pkg_epoch=$(ghrunner stat -c %Y "$pkg" | tr -d '\r\n')
+          if [ -z "$pkg_epoch" ] || [ "$pkg_epoch" -lt "$build_epoch" ]; then
+            echo "stale .run pkg found: $pkg"
+            echo "pkg mtime epoch=${pkg_epoch:-unset}, build start epoch=${build_epoch}"
             exit 1
           fi
           echo "installing $pkg"
