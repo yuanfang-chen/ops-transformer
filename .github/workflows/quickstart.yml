@@ -116,9 +116,19 @@ jobs:
           CANN=$(ghrunner bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
           EXAMPLE_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib"
 
-          output=$(ghrunner env LD_LIBRARY_PATH="${EXAMPLE_LD}:${CANN}/lib64" FORCE_COLOR="${FORCE_COLOR}" \
-            bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom 2>&1) || true
-          printf '%s\n' "$output"
+          output_log=$(mktemp)
+          set +e
+          ghrunner env LD_LIBRARY_PATH="${EXAMPLE_LD}:${CANN}/lib64" FORCE_COLOR="${FORCE_COLOR}" \
+            stdbuf -oL -eL bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom 2>&1 | tee "$output_log"
+          run_status=${PIPESTATUS[0]}
+          set -e
+
+          output=$(tr -d '\r' < "$output_log")
+          if [ "$run_status" -ne 0 ]; then
+            echo ""
+            echo "quickstart smoke test FAILED — ${OPERATOR} example exited with status ${run_status}"
+            exit "$run_status"
+          fi
 
           if [ "${OPERATOR}" != "add_example" ]; then
             echo ""
