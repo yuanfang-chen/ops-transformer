@@ -47,10 +47,8 @@ jobs:
     env:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
       SCRIPT: ${{ inputs.script }}
-      # Reach-function name follows the convention: <runner-label>runner
-      RUNNER_FN: ${{ format('{0}runner', inputs.runner) }}
     steps:
-      - name: run script via $RUNNER_FN
+      - name: run script via ghrunner
         run: |
           source ~/test_runner.bash
           mkdir -p build/remote-exec
@@ -74,7 +72,7 @@ jobs:
           # write the exit file — without it, trailing output can land
           # after ::endgroup:: or be truncated when the step exits.
           echo "::group::output (live)"
-          "${RUNNER_FN}" bash -c "echo ${encoded} | base64 -d | bash" \
+          ghrunner bash -c "echo ${encoded} | base64 -d | bash" \
             > >(tee build/remote-exec/stdout) \
             2> >(tee build/remote-exec/stderr >&2) \
             || rc=$?
