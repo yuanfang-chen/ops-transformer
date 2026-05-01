@@ -1,0 +1,53 @@
+name: dump test_runner.bash
+
+# Diagnostic workflow that runs on the gateway runner itself and prints the
+# gateway-side ~/test_runner.bash file. It does not source the file.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Gateway runner label
+        required: true
+        default: zta5
+        type: string
+
+concurrency:
+  group: runner-singleton-${{ inputs.runner }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+jobs:
+  dump:
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ inputs.runner }}
+    timeout-minutes: 5
+    steps:
+      - name: dump ~/test_runner.bash
+        run: |
+          set -u
+          path="${HOME}/test_runner.bash"
+
+          echo "gateway: $(hostname)"
+          echo "path: ${path}"
+          echo
+
+          if [ ! -f "${path}" ]; then
+            echo "missing: ${path}"
+            exit 1
+          fi
+
+          echo "metadata:"
+          ls -l "${path}"
+          echo
+          echo "contents:"
+          sed -E \
+            -e 's#://[^@[:space:]]*:[^@[:space:]]*@#://***:***@#g' \
+            -e 's#(PASSWORD|PASS|TOKEN|SECRET|KEY)=([^[:space:]]+)#\1=***#Ig' \
+            "${path}"
