@@ -3,15 +3,14 @@ name: pre-commit
 # Iteration loop on a self-hosted gateway. Topology: one gateway machine,
 # multiple GH Actions runner agents registered on it, each agent labeled
 # differently (e.g. `a2`, `a5`) so the workflow can pick which one. Each
-# label corresponds to a function in the gateway's `~/test_runner.bash`
-# named `<label>runner` by convention (e.g. `a2runner`); each function
-# reaches its own real-runner docker container. Workflows pick the agent
-# from the `runner` input if set, otherwise from the SoC → runner mapping
-# table below.
+# label selects which gateway agent runs the job. After dispatch, steps use
+# the gateway's `ghrunner` function from `~/test_runner.bash` to reach the
+# real-runner docker container. Workflows pick the agent from the `runner`
+# input if set, otherwise from the SoC → runner mapping table below.
 #
 #   SoC → runner-label mapping (single source of truth — when adding a new
 #   NPU server class, update this table AND every ternary expression in
-#   `concurrency.group`, `runs-on`, and `env.RUNNER_FN` below):
+#   `concurrency.group` and `runs-on` below):
 #
 #     ascend910b → a2
 #     ascend950  → a5
@@ -75,7 +74,7 @@ concurrency:
   # race the shared git tree on a `git reset --hard`.
   #
   # The runner-resolution expression (`inputs.runner != '' && … || soc-map`)
-  # is repeated in `runs-on` and `env.RUNNER_FN` below — keep them in sync.
+  # is repeated in `runs-on` below — keep them in sync.
   group: runner-singleton-${{ inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2' }}
   cancel-in-progress: false
 
@@ -102,19 +101,14 @@ jobs:
       STRICT_FLAG: ${{ inputs.strict && '--strict' || '' }}
       JOBS: ${{ inputs.jobs || '64' }}
       FORCE_COLOR: '1'
-      # Reach-function name: ${runner-label}runner by convention. Each
-      # gateway's ~/test_runner.bash defines one function per container
-      # it can reach, named `<runner-label>runner`.
-      RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (inputs.soc == 'ascend950' && 'a5') || 'a2') }}
       # Point Node-based actions (checkout, upload-artifact, etc.) at the
       # system CA bundle so they trust the corporate TLS-intercepting proxy.
       # Does NOT affect the runner agent's own step-log uploads — those go
       # through .NET and use the OS trust store directly.
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
-      # No actions/checkout — all work runs on the container via the runner
-      # reach function (a2runner or a5runner depending on inputs.soc; both
-      # defined in the gateway's ~/test_runner.bash). Scripts live at
+      # No actions/checkout — all work runs on the container via ghrunner
+      # from the gateway's ~/test_runner.bash. Scripts live at
       # /workspace/Src/ops-transformer inside the container. Nothing here
       # references $GITHUB_WORKSPACE. Skipping checkout dodges the gateway's
       # flaky gnutls TLS handshake against github.com.
@@ -140,16 +134,16 @@ jobs:
         # re-applied (cheap).
         run: |
           source ~/test_runner.bash
-          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+          if ghrunner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
             echo "container TLS trust already includes Huawei CA — skipping bundle install"
           else
             echo "installing Huawei CA into container bundle"
-            "${RUNNER_FN}" update-ca-certificates --fresh
-            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            ghrunner update-ca-certificates --fresh
+            ghrunner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
           fi
-          "${RUNNER_FN}" git config --system http.postBuffer 524288000
-          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
-          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
+          ghrunner git config --system http.postBuffer 524288000
+          ghrunner git config --system http.lowSpeedLimit 1000
+          ghrunner git config --system http.lowSpeedTime 30
           echo "done"
 
       - name: sync real runner to test SHA
@@ -168,7 +162,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3 4 5; do
-            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
+            if ghrunner git fetch --force --prune origin "${GITHUB_REF}"; then
               break
             fi
             if [ "$attempt" = "5" ]; then
@@ -182,27 +176,27 @@ jobs:
             echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
-          "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
-          "${RUNNER_FN}" git log -1 --oneline
+          ghrunner git reset --hard "${GITHUB_SHA}"
+          ghrunner git log -1 --oneline
 
       - name: show environment
         # The gateway only orchestrates; the real build/test box is a
-        # docker container reached via $RUNNER_FN (a2runner / a5runner).
-        # Both are defined in the gateway's ~/test_runner.bash.
+        # docker container reached via ghrunner from the gateway's
+        # ~/test_runner.bash.
         run: |
           source ~/test_runner.bash
           echo "op=${OP}  soc=${SOC}  gates=${GATES_NORM}  strict=${STRICT_FLAG:-(off)}"
           echo "--- gateway ---"
           uname -a
           echo "--- real runner ---"
-          "${RUNNER_FN}" bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
+          ghrunner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
 
       # One step per gate so each gate's log is readable via the GH API the
       # moment that gate finishes — the old single-step design kept every
       # gate's output hidden until the whole script exited.
       #
       # Each gate runs under `stdbuf -oL -eL` (on the real runner, inside
-      # the $RUNNER_FN call) so the LD_PRELOAD it installs propagates to every
+      # the ghrunner call) so the LD_PRELOAD it installs propagates to every
       # descendant (bash → cmake → make → compilers), forcing line-buffered
       # stdio instead of libc's default 4 KB block buffering on pipes. Without
       # this, output arrives in bursts and the GH live log appears stalled
@@ -211,7 +205,7 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',compile,')
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
+          ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=compile ${STRICT_FLAG}
 
       - name: prepare python env for ut
         # op_kernel UT build runs scripts/util/gen_tiling_head_file.py, which
@@ -224,7 +218,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3; do
-            if "${RUNNER_FN}" pip3 install -r requirements.txt; then
+            if ghrunner pip3 install -r requirements.txt; then
               break
             fi
             if [ "$attempt" = "3" ]; then
@@ -240,7 +234,7 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',ut,')
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
+          ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=ut ${STRICT_FLAG}
 
       - name: prepare python env for pytest
         # The pytest gate's prereq probe checks `import torch; import torch_npu`
@@ -259,7 +253,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3; do
-            if "${RUNNER_FN}" pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple --trusted-host mirror.nju.edu.cn torch torch_npu pytest; then
+            if ghrunner pip3 install -i https://mirror.nju.edu.cn/pypi/web/simple --trusted-host mirror.nju.edu.cn torch torch_npu pytest; then
               break
             fi
             if [ "$attempt" = "3" ]; then
@@ -276,7 +270,7 @@ jobs:
           # dance broke when a5's CANN moved to /home/triton_ascend/...
           # and was always brittle anyway (relied on the install
           # landing under one specific prefix).
-          CANN=$("${RUNNER_FN}" bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
+          CANN=$(ghrunner bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
           if [ -z "$CANN" ]; then
             echo "ASCEND_HOME_PATH unset on runner — gateway test_runner.bash not exporting env?"
             exit 1
@@ -290,7 +284,7 @@ jobs:
           # Verify both modules import — needs CANN runtime libs on
           # LD_LIBRARY_PATH so torch_npu's libmetadef.so dlopen resolves
           # `ge::AscendString` symbols at process start.
-          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" python3 -c 'import torch, torch_npu'
+          ghrunner env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" python3 -c 'import torch, torch_npu'
 
       - name: install run pkg before pytest
         # Pytest goes through the aclnn API at runtime, which loads
@@ -310,14 +304,14 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',pytest,')
         run: |
           source ~/test_runner.bash
-          pkg=$("${RUNNER_FN}" bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
+          pkg=$(ghrunner bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
           if [ -z "$pkg" ]; then
             echo "no .run pkg under build_out/ — was the compile gate run?"
             exit 1
           fi
           echo "installing $pkg"
-          "${RUNNER_FN}" chmod +x "$pkg"
-          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" "$pkg" --quiet
+          ghrunner chmod +x "$pkg"
+          ghrunner env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${CANN_LD}" "$pkg" --quiet
 
       - name: pytest
         # `$CANN`/`$CANN_LD` come from the prep step. Prepend the just-
@@ -328,7 +322,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           PYTEST_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib:${CANN_LD}"
-          "${RUNNER_FN}" env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${PYTEST_LD}" \
+          ghrunner env ASCEND_HOME_PATH="${CANN}" ASCEND_OPP_PATH="${CANN}/opp" LD_LIBRARY_PATH="${PYTEST_LD}" \
             JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
             stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=pytest ${STRICT_FLAG}
 
@@ -336,18 +330,18 @@ jobs:
         if: contains(format(',{0},', env.GATES_NORM), ',st,')
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
+          ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" stdbuf -oL -eL scripts/pre_commit_check.py "${SOC}" --op="${OP}" --only=st ${STRICT_FLAG}
 
       - name: fetch logs from real runner
         # Gates write logs under build/precommit on the container; pull them
-        # back via $RUNNER_FN. The command form (with args) doesn't allocate
+        # back via ghrunner. The command form (with args) doesn't allocate
         # a PTY, so binary tar output passes through cleanly.
         if: always()
         continue-on-error: true
         run: |
           source ~/test_runner.bash
           mkdir -p build/precommit
-          "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null \
+          ghrunner tar -C build/precommit -cf - . 2>/dev/null \
             | tar -C build/precommit -xf - || true
           ls -la build/precommit/ || true
 

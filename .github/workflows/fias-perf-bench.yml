@@ -49,7 +49,6 @@ jobs:
     env:
       COMMIT: ${{ inputs.commit }}
       BRANCH: ${{ inputs.branch }}
-      RUNNER_FN: ${{ format('{0}runner', inputs.runner) }}
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
       - name: prepare runner TLS trust
@@ -57,16 +56,16 @@ jobs:
         # the Huawei CA; no-op on subsequent runs.
         run: |
           source ~/test_runner.bash
-          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+          if ghrunner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
             echo "runner TLS trust already includes Huawei CA — skipping bundle install"
           else
             echo "installing Huawei CA into runner bundle"
-            "${RUNNER_FN}" update-ca-certificates --fresh
-            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            ghrunner update-ca-certificates --fresh
+            ghrunner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
           fi
-          "${RUNNER_FN}" git config --system http.postBuffer 524288000
-          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
-          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
+          ghrunner git config --system http.postBuffer 524288000
+          ghrunner git config --system http.lowSpeedLimit 1000
+          ghrunner git config --system http.lowSpeedTime 30
 
       - name: sync runner to ${{ inputs.commit }}
         # Fetch the branch that carries the bugfix commit, then hard-reset
@@ -75,7 +74,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3 4 5; do
-            if "${RUNNER_FN}" git fetch --force --prune origin "${BRANCH}"; then
+            if ghrunner git fetch --force --prune origin "${BRANCH}"; then
               break
             fi
             if [ "$attempt" = "5" ]; then
@@ -88,14 +87,14 @@ jobs:
             echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
-          "${RUNNER_FN}" git reset --hard "${COMMIT}"
-          "${RUNNER_FN}" git log -1 --oneline
+          ghrunner git reset --hard "${COMMIT}"
+          ghrunner git log -1 --oneline
 
       - name: show environment
         run: |
           source ~/test_runner.bash
-          echo "commit=${COMMIT}  branch=${BRANCH}  runner=${RUNNER_FN}"
-          "${RUNNER_FN}" bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version 2>/dev/null | head -1 || echo "no ccache"; ccache -s 2>/dev/null | head -20 || true'
+          echo "commit=${COMMIT}  branch=${BRANCH}  runner=ghrunner"
+          ghrunner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version 2>/dev/null | head -1 || echo "no ccache"; ccache -s 2>/dev/null | head -20 || true'
 
       - name: build FIAS run package (ascend950)
         # Cold-cache build is ≥90 min per ec7ad647's commit message.
@@ -103,7 +102,7 @@ jobs:
         # `stdbuf -oL` so the live job log streams instead of buffering.
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" stdbuf -oL -eL bash build.sh --pkg --ops=fused_infer_attention_score --soc=ascend950 -j64 -O3
+          ghrunner stdbuf -oL -eL bash build.sh --pkg --ops=fused_infer_attention_score --soc=ascend950 -j64 -O3
 
       - name: install run package
         # Per the bench README: install into ${ASCEND_OPP_PATH} so
@@ -117,7 +116,7 @@ jobs:
         # source would point at the wrong tree.
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" bash -lc 'set -e
+          ghrunner bash -lc 'set -e
             pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1)
             test -n "$pkg" || { echo "no .run pkg under build_out/"; exit 1; }
             echo "installing $pkg into ${ASCEND_OPP_PATH}"
@@ -131,11 +130,11 @@ jobs:
         # cleanly; if not, expect ACL 507015 at aclrtSynchronizeStream.
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" stdbuf -oL -eL bash attention/fused_infer_attention_score/tests/perf/run.sh
+          ghrunner stdbuf -oL -eL bash attention/fused_infer_attention_score/tests/perf/run.sh
 
       - name: ccache stats (post-build, for hot/cold visibility)
         if: always()
         continue-on-error: true
         run: |
           source ~/test_runner.bash
-          "${RUNNER_FN}" bash -c 'ccache -s 2>/dev/null | head -20 || true'
+          ghrunner bash -c 'ccache -s 2>/dev/null | head -20 || true'

@@ -50,8 +50,8 @@ on:
         type: string
 
 concurrency:
-  # Per-runner singleton. Resolution expression repeated in `runs-on` and
-  # `env.RUNNER_FN` — keep them in sync.
+  # Per-runner singleton. Resolution expression repeated in `runs-on` —
+  # keep them in sync.
   group: runner-singleton-${{ inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2' }}
   cancel-in-progress: false
 
@@ -76,10 +76,8 @@ jobs:
       FAIL_FAST: ${{ inputs.fail_fast }}
       JOBS: '64'
       FORCE_COLOR: '1'
-      # Reach-function name: ${runner-label}runner by convention.
-      RUNNER_FN: ${{ format('{0}runner', inputs.runner != '' && inputs.runner || (startsWith(inputs.socs, 'ascend950') && 'a5') || 'a2') }}
     steps:
-      # No actions/checkout — all work runs on the container via $RUNNER_FN
+      # No actions/checkout — all work runs on the container via ghrunner
       # (scripts live at /workspace/Src/ops-transformer inside the container).
       # Nothing here references $GITHUB_WORKSPACE. Skipping checkout dodges
       # the gateway's flaky gnutls TLS handshake against github.com.
@@ -91,16 +89,16 @@ jobs:
         # See pre-commit.yml for the full rationale.
         run: |
           source ~/test_runner.bash
-          if "${RUNNER_FN}" bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
+          if ghrunner bash -c "openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null | grep -q 'Huawei Web Secure'"; then
             echo "container TLS trust already includes Huawei CA — skipping bundle install"
           else
             echo "installing Huawei CA into container bundle"
-            "${RUNNER_FN}" update-ca-certificates --fresh
-            "${RUNNER_FN}" git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+            ghrunner update-ca-certificates --fresh
+            ghrunner git config --system http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
           fi
-          "${RUNNER_FN}" git config --system http.postBuffer 524288000
-          "${RUNNER_FN}" git config --system http.lowSpeedLimit 1000
-          "${RUNNER_FN}" git config --system http.lowSpeedTime 30
+          ghrunner git config --system http.postBuffer 524288000
+          ghrunner git config --system http.lowSpeedLimit 1000
+          ghrunner git config --system http.lowSpeedTime 30
           echo "done"
 
       - name: sync real runner to test SHA
@@ -117,7 +115,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           for attempt in 1 2 3 4 5; do
-            if "${RUNNER_FN}" git fetch --force --prune origin "${GITHUB_REF}"; then
+            if ghrunner git fetch --force --prune origin "${GITHUB_REF}"; then
               break
             fi
             if [ "$attempt" = "5" ]; then
@@ -131,13 +129,13 @@ jobs:
             echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
             sleep "$delay"
           done
-          "${RUNNER_FN}" git reset --hard "${GITHUB_SHA}"
-          "${RUNNER_FN}" git log -1 --oneline
+          ghrunner git reset --hard "${GITHUB_SHA}"
+          ghrunner git log -1 --oneline
 
       - name: iterate (op × soc)
         # The gateway only orchestrates; builds run on the real runner
-        # (docker container on a remote ssh host) via $RUNNER_FN
-        # (a2runner / a5runner), defined in the gateway's ~/test_runner.bash.
+        # (docker container on a remote ssh host) via ghrunner from the
+        # gateway's ~/test_runner.bash.
         run: |
           source ~/test_runner.bash
           set -u
@@ -146,7 +144,7 @@ jobs:
           for soc in ${SOCS}; do
             for op in ${OPS}; do
               echo "::group::${op} on ${soc}"
-              if "${RUNNER_FN}" env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" scripts/pre_commit_check.py "${soc}" --op="${op}" --only="${GATES}" ${STRICT_FLAG}; then
+              if ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" scripts/pre_commit_check.py "${soc}" --op="${op}" --only="${GATES}" ${STRICT_FLAG}; then
                 passed+=("${op}/${soc}")
                 echo "::endgroup::"
               else
@@ -165,14 +163,14 @@ jobs:
 
       - name: fetch logs from real runner
         # Gates write logs under build/precommit on the container; pull them
-        # back via $RUNNER_FN. The command form (with args) doesn't allocate
+        # back via ghrunner. The command form (with args) doesn't allocate
         # a PTY, so binary tar output passes through cleanly.
         if: always()
         continue-on-error: true
         run: |
           source ~/test_runner.bash
           mkdir -p build/precommit
-          "${RUNNER_FN}" tar -C build/precommit -cf - . 2>/dev/null \
+          ghrunner tar -C build/precommit -cf - . 2>/dev/null \
             | tar -C build/precommit -xf - || true
           ls -la build/precommit/ || true
 
