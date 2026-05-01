@@ -94,7 +94,12 @@ jobs:
         run: |
           source ~/test_runner.bash
           echo "commit=${COMMIT}  branch=${BRANCH}  runner=ghrunner"
-          ghrunner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version 2>/dev/null | head -1 || echo "no ccache"; ccache -s 2>/dev/null | head -20 || true'
+          ghrunner uname -a
+          echo "cores: $(ghrunner nproc | tr -d '\r\n')"
+          echo "ASCEND_HOME_PATH=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')"
+          ghrunner python3 --version
+          ghrunner ccache --version 2>/dev/null | head -1 || echo "no ccache"
+          ghrunner ccache -s 2>/dev/null | head -20 || true
 
       - name: build FIAS run package (ascend950)
         # Cold-cache build is ≥90 min per ec7ad647's commit message.
@@ -116,12 +121,19 @@ jobs:
         # source would point at the wrong tree.
         run: |
           source ~/test_runner.bash
-          ghrunner bash -lc 'set -e
-            pkg=$(ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1)
-            test -n "$pkg" || { echo "no .run pkg under build_out/"; exit 1; }
-            echo "installing $pkg into ${ASCEND_OPP_PATH}"
-            chmod +x "$pkg"
-            "$pkg" --quiet --install-path="${ASCEND_OPP_PATH}"'
+          pkg=$(ghrunner bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
+          if [ -z "$pkg" ]; then
+            echo "no .run pkg under build_out/"
+            exit 1
+          fi
+          opp_path=$(ghrunner printenv ASCEND_OPP_PATH | tr -d '\r\n')
+          if [ -z "$opp_path" ]; then
+            echo "ASCEND_OPP_PATH unset on runner"
+            exit 1
+          fi
+          echo "installing $pkg into ${opp_path}"
+          ghrunner chmod +x "$pkg"
+          ghrunner "$pkg" --quiet --install-path="${opp_path}"
 
       - name: run fias_perf bench
         # run.sh sources CANN env, compiles fias_perf.cpp, and prints

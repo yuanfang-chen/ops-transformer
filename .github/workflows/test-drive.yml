@@ -65,7 +65,10 @@ jobs:
         # Trivial call — if this hangs, ssh/docker auth is broken.
         run: |
           source ~/test_runner.bash
-          ghrunner bash -lc 'echo "container hostname: $(hostname)"; uname -a; pwd; id'
+          echo "container hostname: $(ghrunner hostname | tr -d '\r\n')"
+          ghrunner uname -a
+          ghrunner pwd
+          ghrunner id
 
       - name: env var forwarding
         # Confirms `ghrunner env VAR=val …` propagates a var into the

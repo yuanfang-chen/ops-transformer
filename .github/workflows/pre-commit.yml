@@ -189,7 +189,11 @@ jobs:
           echo "--- gateway ---"
           uname -a
           echo "--- real runner ---"
-          ghrunner bash -lc 'uname -a; echo "cores: $(nproc)"; echo "ASCEND_HOME_PATH=${ASCEND_HOME_PATH:-unset}"; python3 --version; ccache --version | head -1 || true'
+          ghrunner uname -a
+          echo "cores: $(ghrunner nproc | tr -d '\r\n')"
+          echo "ASCEND_HOME_PATH=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')"
+          ghrunner python3 --version
+          ghrunner ccache --version | head -1 || true
 
       # One step per gate so each gate's log is readable via the GH API the
       # moment that gate finishes — the old single-step design kept every
@@ -270,7 +274,7 @@ jobs:
           # dance broke when a5's CANN moved to /home/triton_ascend/...
           # and was always brittle anyway (relied on the install
           # landing under one specific prefix).
-          CANN=$(ghrunner bash -c 'echo "${ASCEND_HOME_PATH}"' | tr -d '\r\n')
+          CANN=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')
           if [ -z "$CANN" ]; then
             echo "ASCEND_HOME_PATH unset on runner — gateway test_runner.bash not exporting env?"
             exit 1
