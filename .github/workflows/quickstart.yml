@@ -94,7 +94,7 @@ jobs:
         run: |
           source ~/test_runner.bash
           ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
-            bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}"
+            stdbuf -oL -eL bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}"
 
       # QUICKSTART step 3: install the .run package
       - name: install run package
