@@ -35,6 +35,15 @@ install_codex_cli() {
     npm install -g @openai/codex@latest
 }
 
+configure_codex_zsh_completion() {
+    if ! command -v codex >/dev/null 2>&1; then
+        return
+    fi
+
+    install -d /usr/local/share/zsh/site-functions
+    codex completion zsh > /usr/local/share/zsh/site-functions/_codex
+}
+
 install_claude_code() {
     if command -v claude >/dev/null 2>&1; then
         return
@@ -44,11 +53,14 @@ install_claude_code() {
 }
 
 configure_claude_code_env() {
+    export PATH="/root/.local/bin:${PATH}"
+
     cat > /etc/profile.d/claude-code.sh <<'EOF'
 export PATH="/root/.local/bin:${PATH}"
 EOF
 }
 
 install_codex_cli
+configure_codex_zsh_completion
 install_claude_code
 configure_claude_code_env

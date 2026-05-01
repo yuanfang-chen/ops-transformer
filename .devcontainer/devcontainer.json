@@ -26,7 +26,8 @@
         "charliermarsh.ruff",
         "llvm-vs-code-extensions.vscode-clangd",
         "ms-vscode.cmake-tools",
-        "ms-vscode.cpptools"
+        "ms-vscode.cpptools",
+        "openai.chatgpt"
       ],
       "settings": {
         "terminal.integrated.scrollback": 50000
