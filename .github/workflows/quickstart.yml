@@ -117,7 +117,21 @@ jobs:
           build_status=${PIPESTATUS[0]}
           set -e
           echo "$build_status" > build/quickstart/build.status
-          exit "$build_status"
+          if [ "$build_status" -ne 0 ]; then
+            echo "build command failed with status ${build_status}"
+            exit "$build_status"
+          fi
+          if ! grep -q 'Self-extractable archive "cann-ops-transformer-custom_linux-x86_64.run" successfully created' build/quickstart/build.log; then
+            echo "missing makeself success marker in build log"
+            echo "1" > build/quickstart/build-log.status
+            exit 1
+          fi
+          if ! grep -q 'CPack: - package: .*cann-ops-transformer-custom_linux-x86_64.run generated' build/quickstart/build.log; then
+            echo "missing CPack .run generated marker in build log"
+            echo "1" > build/quickstart/build-log.status
+            exit 1
+          fi
+          echo "0" > build/quickstart/build-log.status
 
       # QUICKSTART step 3: install the .run package
       - name: install run package
@@ -166,8 +180,16 @@ jobs:
           fi
 
           if [ "${OPERATOR}" != "add_example" ]; then
-            echo ""
-            echo "quickstart smoke test completed for ${OPERATOR}; skipping add_example output assertion"
+            if tr -d '\r' < "$output_log" | grep -q "run test_aclnn_${OPERATOR}, execute samples success" &&
+               tr -d '\r' < "$output_log" | grep -q 'Example completed successfully'; then
+              echo ""
+              echo "quickstart smoke test PASSED — ${OPERATOR} example completed successfully"
+            else
+              echo ""
+              echo "quickstart smoke test FAILED — expected ${OPERATOR} example success markers"
+              echo "1" > build/quickstart/verify.status
+              exit 1
+            fi
           elif tr -d '\r' < "$output_log" | grep -q 'result\[0\] is: 2\.000000'; then
             echo ""
             echo "quickstart smoke test PASSED — add_example produced expected output"
