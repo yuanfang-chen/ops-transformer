@@ -98,12 +98,21 @@ jobs:
         run: |
           source ~/test_runner.bash
           mkdir -p build/quickstart
+          {
+            echo "operator=${OPERATOR}"
+            echo "soc=${SOC}"
+            echo "jobs=${JOBS}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "sha=${GITHUB_SHA}"
+          } > build/quickstart/manifest.txt
+
           set +e
           ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
             stdbuf -oL -eL bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}" 2>&1 \
             | tee build/quickstart/build.log
           build_status=${PIPESTATUS[0]}
           set -e
+          echo "$build_status" > build/quickstart/build.status
           exit "$build_status"
 
       # QUICKSTART step 3: install the .run package
@@ -137,8 +146,8 @@ jobs:
             stdbuf -oL -eL bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom 2>&1 | tee "$output_log"
           run_status=${PIPESTATUS[0]}
           set -e
+          echo "$run_status" > build/quickstart/run-example.status
 
-          output=$(tr -d '\r' < "$output_log")
           if [ "$run_status" -ne 0 ]; then
             echo ""
             echo "quickstart smoke test FAILED — ${OPERATOR} example exited with status ${run_status}"
@@ -148,14 +157,16 @@ jobs:
           if [ "${OPERATOR}" != "add_example" ]; then
             echo ""
             echo "quickstart smoke test completed for ${OPERATOR}; skipping add_example output assertion"
-          elif echo "$output" | grep -q 'result\[0\] is: 2\.000000'; then
+          elif tr -d '\r' < "$output_log" | grep -q 'result\[0\] is: 2\.000000'; then
             echo ""
             echo "quickstart smoke test PASSED — add_example produced expected output"
           else
             echo ""
             echo "quickstart smoke test FAILED — expected 'result[0] is: 2.000000' in output"
+            echo "1" > build/quickstart/verify.status
             exit 1
           fi
+          echo "0" > build/quickstart/verify.status
 
       - name: print quickstart log tails
         if: always()
@@ -167,6 +178,14 @@ jobs:
             echo "no quickstart logs to print"
             exit 0
           fi
+          echo "full logs are uploaded from build/quickstart/"
+          echo
+          for status in build/quickstart/*.status build/quickstart/manifest.txt; do
+            [ -f "$status" ] || continue
+            echo "--- $(basename "$status") ---"
+            cat "$status"
+          done
+          echo
           for log in "${logs[@]}"; do
             echo "::group::tail of $(basename "$log")"
             tail -500 "$log" || true
