@@ -97,8 +97,14 @@ jobs:
       - name: build ${{ inputs.operator }}
         run: |
           source ~/test_runner.bash
+          mkdir -p build/quickstart
+          set +e
           ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
-            stdbuf -oL -eL bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}"
+            stdbuf -oL -eL bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}" 2>&1 \
+            | tee build/quickstart/build.log
+          build_status=${PIPESTATUS[0]}
+          set -e
+          exit "$build_status"
 
       # QUICKSTART step 3: install the .run package
       - name: install run package
@@ -124,7 +130,8 @@ jobs:
           fi
           EXAMPLE_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib"
 
-          output_log=$(mktemp)
+          mkdir -p build/quickstart
+          output_log=build/quickstart/run-example.log
           set +e
           ghrunner env LD_LIBRARY_PATH="${EXAMPLE_LD}:${CANN}/lib64" FORCE_COLOR="${FORCE_COLOR}" \
             stdbuf -oL -eL bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom 2>&1 | tee "$output_log"
@@ -149,3 +156,30 @@ jobs:
             echo "quickstart smoke test FAILED — expected 'result[0] is: 2.000000' in output"
             exit 1
           fi
+
+      - name: print quickstart log tails
+        if: always()
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          logs=(build/quickstart/*.log)
+          if [ ${#logs[@]} -eq 0 ]; then
+            echo "no quickstart logs to print"
+            exit 0
+          fi
+          for log in "${logs[@]}"; do
+            echo "::group::tail of $(basename "$log")"
+            tail -500 "$log" || true
+            echo "::endgroup::"
+          done
+
+      - name: upload quickstart logs
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/upload-artifact@v6
+        with:
+          name: quickstart-logs-${{ github.run_attempt }}
+          path: build/quickstart/
+          if-no-files-found: ignore
+          retention-days: 14
