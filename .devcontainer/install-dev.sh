@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-install_bubblewrap() {
-    if command -v bwrap >/dev/null 2>&1; then
-        return
-    fi
-
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y bubblewrap
+clean_apt_lists() {
     apt-get clean
     rm -rf /var/lib/apt/lists/*
+}
+
+install_apt_packages() {
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+        bubblewrap \
+        ripgrep
+    clean_apt_lists
 }
 
 check_bubblewrap() {
@@ -30,7 +32,6 @@ install_codex_cli() {
         return
     fi
 
-    install_bubblewrap
     check_bubblewrap
     npm install -g @openai/codex@latest
 }
@@ -60,6 +61,7 @@ export PATH="/root/.local/bin:${PATH}"
 EOF
 }
 
+install_apt_packages
 install_codex_cli
 configure_codex_zsh_completion
 install_claude_code
