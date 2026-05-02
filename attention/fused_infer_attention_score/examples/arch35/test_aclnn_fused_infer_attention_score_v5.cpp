@@ -105,15 +105,17 @@ int main() {
 
     // 2. To construct input and output, it is necessary to customize the construction according to the API interface.
     int32_t batchSize = 1;
-    int32_t numHeads = 2;
+    int32_t numHeads = 1;
     int32_t sequenceLengthQ = 1;
-    int32_t headDims = 16;
-    int32_t keyNumHeads = 2;
-    int32_t sequenceLengthKV = 16;
-    std::vector<int64_t> queryShape = {batchSize, numHeads, sequenceLengthQ, headDims}; // BNSD
-    std::vector<int64_t> keyShape = {batchSize, keyNumHeads, sequenceLengthKV, headDims}; // BNSD
-    std::vector<int64_t> valueShape = {batchSize, keyNumHeads, sequenceLengthKV, headDims}; // BNSD
-    std::vector<int64_t> outShape = {batchSize, numHeads, sequenceLengthQ, headDims}; // BNSD
+    int32_t headDims = 128;
+    int32_t keyNumHeads = 1;
+    int32_t sequenceLengthKV = 1024;
+    int32_t hiddenSize = numHeads * headDims;
+    int32_t keyHiddenSize = keyNumHeads * headDims;
+    std::vector<int64_t> queryShape = {batchSize, sequenceLengthQ, hiddenSize}; // BSH
+    std::vector<int64_t> keyShape = {batchSize, sequenceLengthKV, keyHiddenSize}; // BSH
+    std::vector<int64_t> valueShape = {batchSize, sequenceLengthKV, keyHiddenSize}; // BSH
+    std::vector<int64_t> outShape = {batchSize, sequenceLengthQ, hiddenSize}; // BSH
     void *queryDeviceAddr = nullptr;
     void *keyDeviceAddr = nullptr;
     void *valueDeviceAddr = nullptr;
@@ -165,7 +167,7 @@ int main() {
     double scaleValue = 1 / sqrt(headDims); // 1/sqrt(d)
     int64_t preTokens = 65535;
     int64_t nextTokens = 65535;
-    string sLayerOut = "BNSD";
+    string sLayerOut = "BSH";
     char layerOut[sLayerOut.length() + 1];
     errno_t strRet = strcpy_s(layerOut, sizeof(layerOut), sLayerOut.c_str());
     if (strRet != EOK) {
