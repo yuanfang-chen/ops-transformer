@@ -103,35 +103,25 @@ int main() {
     }
 
     // 2. To construct input and output, it is necessary to customize the construction according to the API interface.
-    std::vector<int64_t> queryShape = {1, 2, 2, 16}; // BNSD
+    std::vector<int64_t> queryShape = {1, 2, 1, 16}; // BNSD
     std::vector<int64_t> keyShape = {1, 2, 2, 16};   // BNSD
     std::vector<int64_t> valueShape = {1, 2, 2, 16}; // BNSD
-    std::vector<int64_t> pseShape = {2}; // N
-    std::vector<int64_t> attenShape = {1, 1, 2, 2};  // B 1 S1 S2
-    std::vector<int64_t> outShape = {1, 2, 2, 16};   // BNSD
+    std::vector<int64_t> outShape = {1, 2, 1, 16};   // BNSD
     void *queryDeviceAddr = nullptr;
     void *keyDeviceAddr = nullptr;
     void *valueDeviceAddr = nullptr;
-    void *pseDeviceAddr = nullptr;
-    void *attenDeviceAddr = nullptr;
     void *outDeviceAddr = nullptr;
     aclTensor *queryTensor = nullptr;
     aclTensor *keyTensor = nullptr;
     aclTensor *valueTensor = nullptr;
-    aclTensor *pseTensor = nullptr;
-    aclTensor *attenTensor = nullptr;
     aclTensor *outTensor = nullptr;
     int64_t queryShapeSize = GetShapeSize(queryShape); // BNSD
     int64_t keyShapeSize = GetShapeSize(keyShape);     // BNSD
     int64_t valueShapeSize = GetShapeSize(valueShape); // BNSD
-    int64_t pseShapeSize = GetShapeSize(pseShape);
-    int64_t attenShapeSize = GetShapeSize(attenShape); // B 1 S1 S2
     int64_t outShapeSize = GetShapeSize(outShape);     // BNSD
     std::vector<float> queryHostData(queryShapeSize, 1);
     std::vector<float> keyHostData(keyShapeSize, 1);
     std::vector<float> valueHostData(valueShapeSize, 1);
-    std::vector<float> pseHostData(pseShapeSize, 1);
-    std::vector<float> attenHostData(attenShapeSize, 1);
     std::vector<float> outHostData(outShapeSize, 1);
 
     // Create query aclTensor.
@@ -156,16 +146,6 @@ int main() {
     aclTensor *tensorsOfValue[kvTensorNum];
     tensorsOfValue[0] = valueTensor;
     auto tensorValueList = aclCreateTensorList(tensorsOfValue, kvTensorNum);
-    // Create atten aclTensor.
-    ret = CreateAclTensor(pseHostData, pseShape, &pseDeviceAddr, aclDataType::ACL_FLOAT, &pseTensor);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        return ret;
-    }
-    // Create atten aclTensor.
-    ret = CreateAclTensor(attenHostData, attenShape, &attenDeviceAddr, aclDataType::ACL_BOOL, &attenTensor);
-    if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        return ret;
-    }
     // Create out aclTensor.
     ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT16, &outTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -181,7 +161,11 @@ int main() {
     int64_t nextTokens = 2147483647;
     string sLayerOut = "BNSD";
     char layerOut[sLayerOut.length() + 1];
-    strcpy(layerOut, sLayerOut.c_str());
+    errno_t strRet = strcpy_s(layerOut, sizeof(layerOut), sLayerOut.c_str());
+    if (strRet != EOK) {
+        LOG_PRINT("strcpy_s failed. ERROR: %d\n", strRet);
+        return strRet;
+    }
     int64_t sparseMode = 0;
     int64_t innerPrecise = 1;
     int blockSize = 0;
@@ -189,13 +173,13 @@ int main() {
     bool softmaxLseFlag = false;
     int keyAntiquantMode = 0;
     int valueAntiquantMode = 0;
-    int64_t pseType = 2;
+    int64_t pseType = 0;
     // 3. Call CANN operator library API.
     uint64_t workspaceSize = 0;
     aclOpExecutor *executor;
     // Call the first interface.
     ret = aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
-        queryTensor, tensorKeyList, tensorValueList, pseTensor, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        queryTensor, tensorKeyList, tensorValueList, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut,
         numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode,
@@ -244,13 +228,11 @@ int main() {
     aclDestroyTensor(queryTensor);
     aclDestroyTensor(keyTensor);
     aclDestroyTensor(valueTensor);
-    aclDestroyTensor(attenTensor);
     aclDestroyTensor(outTensor);
     aclDestroyIntArray(actualSeqLengths);
     aclrtFree(queryDeviceAddr);
     aclrtFree(keyDeviceAddr);
     aclrtFree(valueDeviceAddr);
-    aclrtFree(attenDeviceAddr);
     aclrtFree(outDeviceAddr);
     if (workspaceSize > 0U) {
         aclrtFree(workspaceAddr);
