@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include "acl/acl.h"
+#include "aclnn/opdev/fp16_t.h"
 #include "aclnnop/aclnn_fused_infer_attention_score_v5.h"
 #include "securec.h"
 
@@ -103,10 +104,16 @@ int main() {
     }
 
     // 2. To construct input and output, it is necessary to customize the construction according to the API interface.
-    std::vector<int64_t> queryShape = {1, 2, 1, 16}; // BNSD
-    std::vector<int64_t> keyShape = {1, 2, 2, 16};   // BNSD
-    std::vector<int64_t> valueShape = {1, 2, 2, 16}; // BNSD
-    std::vector<int64_t> outShape = {1, 2, 1, 16};   // BNSD
+    int32_t batchSize = 1;
+    int32_t numHeads = 2;
+    int32_t sequenceLengthQ = 1;
+    int32_t headDims = 16;
+    int32_t keyNumHeads = 2;
+    int32_t sequenceLengthKV = 16;
+    std::vector<int64_t> queryShape = {batchSize, numHeads, sequenceLengthQ, headDims}; // BNSD
+    std::vector<int64_t> keyShape = {batchSize, keyNumHeads, sequenceLengthKV, headDims}; // BNSD
+    std::vector<int64_t> valueShape = {batchSize, keyNumHeads, sequenceLengthKV, headDims}; // BNSD
+    std::vector<int64_t> outShape = {batchSize, numHeads, sequenceLengthQ, headDims}; // BNSD
     void *queryDeviceAddr = nullptr;
     void *keyDeviceAddr = nullptr;
     void *valueDeviceAddr = nullptr;
@@ -119,10 +126,10 @@ int main() {
     int64_t keyShapeSize = GetShapeSize(keyShape);     // BNSD
     int64_t valueShapeSize = GetShapeSize(valueShape); // BNSD
     int64_t outShapeSize = GetShapeSize(outShape);     // BNSD
-    std::vector<float> queryHostData(queryShapeSize, 1);
-    std::vector<float> keyHostData(keyShapeSize, 1);
-    std::vector<float> valueHostData(valueShapeSize, 1);
-    std::vector<float> outHostData(outShapeSize, 1);
+    std::vector<op::fp16_t> queryHostData(queryShapeSize, 1);
+    std::vector<op::fp16_t> keyHostData(keyShapeSize, 1);
+    std::vector<op::fp16_t> valueHostData(valueShapeSize, 1);
+    std::vector<op::fp16_t> outHostData(outShapeSize, 1);
 
     // Create query aclTensor.
     ret = CreateAclTensor(queryHostData, queryShape, &queryDeviceAddr, aclDataType::ACL_FLOAT16, &queryTensor);
@@ -152,13 +159,12 @@ int main() {
         return ret;
     }
 
-    std::vector<int64_t> actualSeqlenVector = {2};
+    std::vector<int64_t> actualSeqlenVector = {sequenceLengthKV};
     auto actualSeqLengths = aclCreateIntArray(actualSeqlenVector.data(), actualSeqlenVector.size());
-    int64_t numHeads = 2; // N
     int64_t numKeyValueHeads = numHeads;
-    double scaleValue = 1 / sqrt(2); // 1/sqrt(d)
-    int64_t preTokens = 2147483647;
-    int64_t nextTokens = 2147483647;
+    double scaleValue = 1 / sqrt(headDims); // 1/sqrt(d)
+    int64_t preTokens = 65535;
+    int64_t nextTokens = 65535;
     string sLayerOut = "BNSD";
     char layerOut[sLayerOut.length() + 1];
     errno_t strRet = strcpy_s(layerOut, sizeof(layerOut), sLayerOut.c_str());
@@ -214,7 +220,7 @@ int main() {
     // 5. Retrieve the output value, copy the result from the device side memory to the host side, and modify it
     // according to the specific API interface definition.
     auto size = GetShapeSize(outShape);
-    std::vector<float> resultData(size, 0);
+    std::vector<op::fp16_t> resultData(size, 0);
     ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), outDeviceAddr,
                       size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
     if (!CHECK_RET(ret == ACL_SUCCESS)) { 
@@ -222,7 +228,7 @@ int main() {
         return ret;
     }
     for (int64_t i = 0; i < size; i++) {
-        LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+        LOG_PRINT("result[%ld] is: %f\n", i, static_cast<float>(resultData[i]));
     }
     // 6. Release resources.
     aclDestroyTensor(queryTensor);
