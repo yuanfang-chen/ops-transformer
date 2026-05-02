@@ -36,6 +36,14 @@ install_codex_cli() {
     npm install -g @openai/codex@latest
 }
 
+install_opencode_cli() {
+    if command -v opencode >/dev/null 2>&1; then
+        return
+    fi
+
+    npm install -g opencode-ai@latest
+}
+
 configure_codex_zsh_completion() {
     if ! command -v codex >/dev/null 2>&1; then
         return
@@ -63,6 +71,7 @@ EOF
 
 install_apt_packages
 install_codex_cli
+install_opencode_cli
 configure_codex_zsh_completion
 install_claude_code
 configure_claude_code_env
