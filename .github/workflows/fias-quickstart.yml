@@ -1,0 +1,223 @@
+name: fias-quickstart-e2e
+
+# End-to-end FIAS sanity check based on quickstart-e2e:
+# build the fused_infer_attention_score operator with a fixed kernel template,
+# install the .run package, run the example binary, and verify the output.
+#
+# Uses the same gateway -> real-runner topology as pre-commit.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      soc:
+        description: SoC target
+        required: false
+        default: ascend950
+        type: choice
+        options:
+          - ascend910b
+          - ascend950
+      jobs:
+        description: Parallel jobs (-jN) for the build
+        required: false
+        default: '32'
+        type: string
+      runner:
+        description: |
+          Specific gateway runner label. To target one physical runner,
+          give that runner a unique label, often matching its runner name.
+        required: true
+        default: 'zta5'
+        type: string
+
+concurrency:
+  group: runner-singleton-${{ inputs.runner }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: stdbuf -oL -eL bash -el {0}
+
+jobs:
+  quickstart:
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - ${{ inputs.runner }}
+    timeout-minutes: 120
+    env:
+      OPERATOR: fused_infer_attention_score
+      SOC: ${{ inputs.soc }}
+      JOBS: ${{ inputs.jobs }}
+      KERNEL_TEMPLATE_INPUT: InOutLayoutType=0,Config=2,PseMode=2,QuantMode=31,HasAttenMask=true,HasRope=false,IsPa=false,IsFd=false,EmptyTensor=false,PFAMask=0,PFAMatMulType=0,EnableKVPrefix=false,EnableS1OutSplit=false
+      FORCE_COLOR: '1'
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+    steps:
+      - name: sync real runner to test SHA
+        run: |
+          source ~/test_runner.bash
+          for attempt in 1 2 3 4 5; do
+            if ghrunner git fetch --force --prune origin "${GITHUB_REF}"; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "git fetch failed after 5 attempts"
+              exit 1
+            fi
+            base=$((5 * (2 ** (attempt - 1))))
+            jitter=$((RANDOM % base))
+            delay=$((base + jitter))
+            echo "git fetch failed (attempt $attempt); sleeping ${delay}s before retry"
+            sleep "$delay"
+          done
+          ghrunner git reset --hard "${GITHUB_SHA}"
+          ghrunner git log -1 --oneline
+
+      - name: show environment
+        run: |
+          source ~/test_runner.bash
+          echo "operator=${OPERATOR}  soc=${SOC}  jobs=${JOBS}"
+          echo "kernel_template_input=${KERNEL_TEMPLATE_INPUT}"
+          echo "--- gateway ---"
+          uname -a
+          echo "--- real runner ---"
+          ghrunner uname -a
+          echo "cores: $(ghrunner nproc | tr -d '\r\n')"
+          echo "ASCEND_HOME_PATH=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')"
+          ghrunner python3 --version
+          ghrunner ccache --version | head -1 || true
+
+      # QUICKSTART step 2: build the operator package
+      - name: build FIAS
+        run: |
+          source ~/test_runner.bash
+          mkdir -p build/fias-quickstart
+          {
+            echo "operator=${OPERATOR}"
+            echo "soc=${SOC}"
+            echo "jobs=${JOBS}"
+            echo "kernel_template_input=${KERNEL_TEMPLATE_INPUT}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "sha=${GITHUB_SHA}"
+          } > build/fias-quickstart/manifest.txt
+
+          build_epoch=$(date +%s)
+          echo "$build_epoch" > build/fias-quickstart/build-start.epoch
+          ghrunner rm -f build_out/cann-ops-transformer-*.run build/cann-ops-transformer-*.run
+
+          set +e
+          ghrunner env JOBS="${JOBS}" FORCE_COLOR="${FORCE_COLOR}" \
+            stdbuf -oL -eL bash build.sh --pkg --soc="${SOC}" --ops="${OPERATOR}" -j"${JOBS}" --kernel_template_input="${KERNEL_TEMPLATE_INPUT}" 2>&1 \
+            | tee build/fias-quickstart/build.log
+          build_status=${PIPESTATUS[0]}
+          set -e
+          echo "$build_status" > build/fias-quickstart/build.status
+          if [ "$build_status" -ne 0 ]; then
+            echo "build command failed with status ${build_status}"
+            exit "$build_status"
+          fi
+          if ! grep -q 'Self-extractable archive "cann-ops-transformer-custom_linux-x86_64.run" successfully created' build/fias-quickstart/build.log; then
+            echo "missing makeself success marker in build log"
+            echo "1" > build/fias-quickstart/build-log.status
+            exit 1
+          fi
+          if ! grep -q 'CPack: - package: .*cann-ops-transformer-custom_linux-x86_64.run generated' build/fias-quickstart/build.log; then
+            echo "missing CPack .run generated marker in build log"
+            echo "1" > build/fias-quickstart/build-log.status
+            exit 1
+          fi
+          echo "0" > build/fias-quickstart/build-log.status
+
+      # QUICKSTART step 3: install the .run package
+      - name: install run package
+        run: |
+          source ~/test_runner.bash
+          build_epoch=$(cat build/fias-quickstart/build-start.epoch)
+          pkg=$(ghrunner bash -c 'ls -1t build_out/cann-ops-transformer-*.run 2>/dev/null | head -1' | tr -d '\r\n')
+          if [ -z "$pkg" ]; then
+            echo "no .run pkg under build_out/ - build step failed?"
+            exit 1
+          fi
+          pkg_epoch=$(ghrunner stat -c %Y "$pkg" | tr -d '\r\n')
+          if [ -z "$pkg_epoch" ] || [ "$pkg_epoch" -lt "$build_epoch" ]; then
+            echo "stale .run pkg found: $pkg"
+            echo "pkg mtime epoch=${pkg_epoch:-unset}, build start epoch=${build_epoch}"
+            exit 1
+          fi
+          echo "installing $pkg"
+          ghrunner chmod +x "$pkg"
+          ghrunner "$pkg" --quiet
+
+      # QUICKSTART steps 4+5: set LD_LIBRARY_PATH and run the example
+      - name: run FIAS and verify output
+        run: |
+          source ~/test_runner.bash
+          CANN=$(ghrunner printenv ASCEND_HOME_PATH | tr -d '\r\n')
+          if [ -z "$CANN" ]; then
+            echo "ASCEND_HOME_PATH unset on runner"
+            exit 1
+          fi
+          EXAMPLE_LD="${CANN}/opp/vendors/custom_transformer/op_api/lib"
+
+          mkdir -p build/fias-quickstart
+          output_log=build/fias-quickstart/run-example.log
+          set +e
+          ghrunner env LD_LIBRARY_PATH="${EXAMPLE_LD}:${CANN}/lib64" FORCE_COLOR="${FORCE_COLOR}" \
+            stdbuf -oL -eL bash build.sh --run_example "${OPERATOR}" eager cust --vendor_name=custom 2>&1 | tee "$output_log"
+          run_status=${PIPESTATUS[0]}
+          set -e
+          echo "$run_status" > build/fias-quickstart/run-example.status
+
+          if [ "$run_status" -ne 0 ]; then
+            echo ""
+            echo "FIAS quickstart smoke test FAILED - example exited with status ${run_status}"
+            exit "$run_status"
+          fi
+
+          if tr -d '\r' < "$output_log" | grep -q "run test_aclnn_${OPERATOR}, execute samples success" &&
+             tr -d '\r' < "$output_log" | grep -q 'Example completed successfully'; then
+            echo ""
+            echo "FIAS quickstart smoke test PASSED - example completed successfully"
+          else
+            echo ""
+            echo "FIAS quickstart smoke test FAILED - expected FIAS example success markers"
+            echo "1" > build/fias-quickstart/verify.status
+            exit 1
+          fi
+          echo "0" > build/fias-quickstart/verify.status
+
+      - name: print FIAS quickstart log tails
+        if: always()
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          logs=(build/fias-quickstart/*.log)
+          if [ ${#logs[@]} -eq 0 ]; then
+            echo "no FIAS quickstart logs to print"
+            exit 0
+          fi
+          echo "full logs are uploaded from build/fias-quickstart/"
+          echo
+          for status in build/fias-quickstart/*.status build/fias-quickstart/manifest.txt; do
+            [ -f "$status" ] || continue
+            echo "--- $(basename "$status") ---"
+            cat "$status"
+          done
+          echo
+          for log in "${logs[@]}"; do
+            echo "::group::tail of $(basename "$log")"
+            tail -500 "$log" || true
+            echo "::endgroup::"
+          done
+
+      - name: upload FIAS quickstart logs
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/upload-artifact@v7
+        with:
+          name: fias-quickstart-logs-${{ github.run_attempt }}
+          path: build/fias-quickstart/
+          if-no-files-found: ignore
+          retention-days: 14
