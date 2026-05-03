@@ -187,37 +187,19 @@ jobs:
           fi
           echo "0" > build/fias-quickstart/verify.status
 
-      - name: print FIAS quickstart log tails
+      - name: print FIAS quickstart logs
         if: always()
         continue-on-error: true
         run: |
           shopt -s nullglob
-          logs=(build/fias-quickstart/*.log)
-          if [ ${#logs[@]} -eq 0 ]; then
+          files=(build/fias-quickstart/*.status build/fias-quickstart/manifest.txt build/fias-quickstart/*.log)
+          if [ ${#files[@]} -eq 0 ]; then
             echo "no FIAS quickstart logs to print"
             exit 0
           fi
-          echo "full logs are uploaded from build/fias-quickstart/"
-          echo
-          for status in build/fias-quickstart/*.status build/fias-quickstart/manifest.txt; do
-            [ -f "$status" ] || continue
-            echo "--- $(basename "$status") ---"
-            cat "$status"
-          done
-          echo
-          for log in "${logs[@]}"; do
-            echo "::group::tail of $(basename "$log")"
-            tail -500 "$log" || true
+          for file in "${files[@]}"; do
+            [ -f "$file" ] || continue
+            echo "::group::$(basename "$file")"
+            cat "$file" || true
             echo "::endgroup::"
           done
-
-      - name: upload FIAS quickstart logs
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 5
-        uses: actions/upload-artifact@v7
-        with:
-          name: fias-quickstart-logs-${{ github.run_attempt }}
-          path: build/fias-quickstart/
-          if-no-files-found: ignore
-          retention-days: 14
