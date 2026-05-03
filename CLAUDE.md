@@ -137,9 +137,9 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   Actions **runner agents**, each agent registered with a distinct
   label (any free-form string the operator picked, e.g. `a2`, `a5`).
   Each label maps to a **real runner** reached via a function
-  `<label>runner` defined in the gateway's `~/test_runner.bash`. The
+  `ghrunner` defined in the gateway's `~/test_runner.bash`. The
   command form does not allocate a PTY, so binary pipes
-  (`a2runner tar -cf - …`) work as-is; bare invocation opens an
+  (`ghrunner tar -cf - …`) work as-is; bare invocation opens an
   interactive shell. **Two real-runner shapes are in use** and they
   differ in CANN install layout, python version, and TLS trust —
   workflows that depend on runtime details must accommodate both:
@@ -172,8 +172,8 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   - `ascend950`  → `a5`
   - When a new NPU server class is added (e.g. `ascend970` → `a6`), update
     the table comment AND every `${{ inputs.runner != '' && inputs.runner
-    || (inputs.soc == ...) || ... }}` ternary in `concurrency.group`,
-    `runs-on`, and `env.RUNNER_FN`. Same pattern in `batch.yml` (uses
+    || (inputs.soc == ...) || ... }}` ternary in `concurrency.group`
+    and `runs-on`. Same pattern in `batch.yml` (uses
     `startsWith(inputs.socs, …)` because `socs` is space-separated).
 - Every dispatchable workflow accepts a **`runner`** input that overrides
   the SoC mapping. Empty (default) → derive from soc. Non-empty → use
@@ -181,9 +181,8 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   runner agent before its SoC is in the mapping.
 - CI workflows treat the gateway as a thin orchestrator: source
   `~/test_runner.bash`, sync the container to `GITHUB_SHA`, run gates
-  via the `$RUNNER_FN` variable (resolves to `a2runner`/`a5runner`/etc.
-  based on the chosen runner label), fetch logs back via
-  `$RUNNER_FN tar`, stream gate tails into the live job log.
+  via the `ghrunner` function, fetch logs back via `ghrunner tar`,
+  stream gate tails into the live job log.
   `actions/checkout` is intentionally skipped (the gateway's gnutls TLS
   to github.com is flaky); `actions/upload-artifact` is enabled for
   archival once the gateway's TLS trust is configured. They use
@@ -198,13 +197,13 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   calls `update-ca-certificates --fresh` and pins git at the bundle via
   `http.sslCAInfo`. Subsequent runs short-circuit via an openssl-decoded
   bundle scan.
-- **`${RUNNER_FN}` quoting gotcha**: the reach function wraps via
+- **`ghrunner` quoting gotcha**: the reach function wraps via
   `ssh <host> "… bash -c \"$cmd\""`, and the SSH-host shell parses the
   outer `"…"` once before the target shell runs. Any literal `"` inside
   a script passed as `bash -c '<script>'` terminates that outer string
   and exposes `$var`/`$(...)` to the SSH-host shell instead of the
   target. Either keep inner scripts single-quote-only (no `"`), split
-  logic across multiple `${RUNNER_FN}` calls so each is plain argv
+  logic across multiple `ghrunner` calls so each is plain argv
   (the pattern used by `pre-commit.yml`'s install / pytest steps), or
   base64-encode the script (the pattern used by `remote-exec.yml`).
 - **CANN path discovery for pytest**: `pre-commit.yml`'s
@@ -247,4 +246,3 @@ Mental model: **Tile → Block → Epilogue** with configurable policies, but ta
   `scripts/pre_commit_check.py` clamps `JOBS` via `OP_JOB_CAPS`; if you
   invoke `bash build.sh -jN` directly for FIAS, keep `N ≤ 64`. See
   issue #4.
-

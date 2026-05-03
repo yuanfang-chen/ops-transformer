@@ -42,3 +42,6 @@ third_party/
 .agents/
 .opencode/
 .claude/settings.local.json
+
+.devcontainer/devcontainer-lock.json
+
