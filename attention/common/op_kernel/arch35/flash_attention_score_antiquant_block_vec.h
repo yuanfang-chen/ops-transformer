@@ -664,86 +664,99 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::ProcessVec1
 
     LocalTensor<uint8_t> dropMaskUb;
     auto stage1CastTensor = this->stage1OutQue[0].template AllocTensor<Q_T>();
-    if (unlikely(runInfo.s2LoopCount == 0)) {
-        if (runInfo.s2RealSize == 128) {  // 128 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 64) { // 64 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 128 && runInfo.s2RealSize > 64) {  // 64 and 128 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 256 && runInfo.s2RealSize > 128) {  // 128 and 256 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_128_AND_LTE_256, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 512 && runInfo.s2RealSize > 256) {  // 256 and 512 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 1024 && runInfo.s2RealSize > 512) {  // 512 and 1024 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_512_AND_LTE_1024, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
+#define PROCESS_VEC1_CASES(HAS_ATTEN_MASK) \
+    if (unlikely(runInfo.s2LoopCount == 0)) { \
+        if (runInfo.s2RealSize == 128) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 64) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 128 && runInfo.s2RealSize > 64) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 256 && runInfo.s2RealSize > 128) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_128_AND_LTE_256, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 512 && runInfo.s2RealSize > 256) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 1024 && runInfo.s2RealSize > 512) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_512_AND_LTE_1024, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } \
+    } else { \
+        if (runInfo.s2RealSize == 128) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, EQ_128, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 64) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 128 && runInfo.s2RealSize > 64) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 256 && runInfo.s2RealSize > 128) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_128_AND_LTE_256, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 512 && runInfo.s2RealSize > 256) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } else if (runInfo.s2RealSize <= 1024 && runInfo.s2RealSize > 512) { \
+            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_512_AND_LTE_1024, HAS_ATTEN_MASK, pseMode, false>( \
+                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb, \
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize, \
+                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar, \
+                constInfo.keepProb); \
+        } \
+    }
+    if constexpr (hasAtten) {
+        if (constInfo.hasAttenMaskRT) {
+            PROCESS_VEC1_CASES(true);
+        } else {
+            PROCESS_VEC1_CASES(false);
         }
     } else {
-         if (runInfo.s2RealSize == 128) { // 128 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 64) { // 64 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 128 && runInfo.s2RealSize > 64) { // 64 and 128 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 256 && runInfo.s2RealSize > 128) { // 128 and 256 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_128_AND_LTE_256, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 512 && runInfo.s2RealSize > 256) { // 256 and 512 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        } else if (runInfo.s2RealSize <= 1024 && runInfo.s2RealSize > 512) { // 512 and 1024 is s2RealSize
-            ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_512_AND_LTE_1024, hasAtten, pseMode, false>(
-                stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
-                pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
-                constInfo.keepProb);
-        }
+        PROCESS_VEC1_CASES(false);
     }
+#undef PROCESS_VEC1_CASES
     CrossCoreSetFlag<SYNC_MODE, PIPE_V>(VC_MM1RES_EVENT[runInfo.taskIdMod2]);
     if constexpr (hasAtten) {
-        this->attenMaskInQue[runInfo.taskIdMod2].template FreeTensor(attenMaskUb);
+        if (constInfo.hasAttenMaskRT) {
+            this->attenMaskInQue[runInfo.taskIdMod2].template FreeTensor(attenMaskUb);
+        }
     }
     if constexpr (hasPseOuter) {
         this->pseInQue.template FreeTensor(pseUb);
