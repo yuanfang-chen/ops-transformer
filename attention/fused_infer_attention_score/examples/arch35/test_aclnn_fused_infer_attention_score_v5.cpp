@@ -131,7 +131,7 @@ int main() {
     std::vector<float> keyHostData(keyShapeSize, 1);
     std::vector<float> valueHostData(valueShapeSize, 1);
     std::vector<float> pseHostData(pseShapeSize, 1);
-    std::vector<float> attenHostData(attenShapeSize, 1);
+    std::vector<uint8_t> attenHostData = {0, 1, 1, 0};
     std::vector<float> outHostData(outShapeSize, 1);
 
     // Create query aclTensor.
@@ -195,7 +195,7 @@ int main() {
     aclOpExecutor *executor;
     // Call the first interface.
     ret = aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
-        queryTensor, tensorKeyList, tensorValueList, pseTensor, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        queryTensor, tensorKeyList, tensorValueList, pseTensor, attenTensor, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut,
         numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode,
